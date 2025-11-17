@@ -59,8 +59,12 @@ A production-ready template for deploying Google ADK (Agent Development Kit) age
 
 ```
 src/adk_docker_uv/
-  agent/            # ADK integration (project-specific)
+  agent.py          # LlmAgent configuration
+  callbacks.py      # Agent callbacks
+  prompt.py         # Agent prompts
+  tools.py          # Custom tools
   server.py         # FastAPI development server
+  utils/            # Utilities (logging, env parsing)
 data/               # Placeholder for data
 docs/               # Documentation
 tests/              # Test suite

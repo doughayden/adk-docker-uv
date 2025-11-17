@@ -6,9 +6,7 @@ from google.adk.agents.readonly_context import ReadonlyContext
 
 
 def return_description_root() -> str:
-    description = """\
-An agent that helps users answer general questions\
-"""
+    description = "An agent that helps users answer general questions"
     return description
 
 

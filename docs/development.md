@@ -186,15 +186,18 @@ The project uses PEP 735 dependency groups (via `uv`):
 ```
 adk-docker-uv/
   src/adk_docker_uv/
-    agent/                # ADK agent implementation
-      agent.py              # LlmAgent configuration
-      callbacks.py          # Agent callbacks
-      prompt.py             # Agent prompts
-      tools.py              # Custom tools
+    agent.py              # LlmAgent configuration
+    callbacks.py          # Agent callbacks
+    prompt.py             # Agent prompts
+    tools.py              # Custom tools
     server.py             # FastAPI development server
     utils/                # Utilities
+      env_parser.py         # Environment variable parsing
       log_config.py         # Logging configuration
   tests/                  # Test suite
+    conftest.py             # Shared fixtures
+    test_integration.py     # Integration tests
+    test_*.py               # Unit tests
   docs/                   # Documentation
   .env.example            # Environment template
   pyproject.toml          # Project configuration
