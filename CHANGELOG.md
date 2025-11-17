@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- InstructionProvider pattern for dynamic instruction generation (enables current dates, session-aware customization)
+- Comprehensive tests for prompt functions with MockReadonlyContext (test_prompt.py, 13 new tests)
+- InstructionProvider pattern documentation in CLAUDE.md
+
+### Changed
+- Restructured package from nested `agent/` directory to flat structure (`agent.py`, `callbacks.py`, `tools.py`, `prompt.py` at root)
+- Updated `global_instruction` to use InstructionProvider callable pattern instead of static string
+- Sorted `LlmAgent` parameters in agent.py to match ADK field order
+- Updated coverage exclusions in pyproject.toml (removed prompt.py, updated paths to flat structure)
+- Updated test imports after package restructure (45 existing tests passing)
+
 ## [0.1.0] - 2025-11-12
 
 ### Added
