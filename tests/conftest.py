@@ -95,27 +95,6 @@ class MockInvocationContext:
         self.memory_service = memory_service
 
 
-class MockLocationCallbackContext:
-    """Mock CallbackContext for location context loading.
-
-    Used by load_location_context callback for testing.
-    """
-
-    def __init__(
-        self,
-        state: dict[str, Any] | None = None,
-        invocation_context: MockInvocationContext | None = None,
-    ) -> None:
-        """Initialize mock callback context for location loading.
-
-        Args:
-            state: Initial state dictionary (defaults to empty dict).
-            invocation_context: Optional invocation context with session.
-        """
-        self.state = state if state is not None else {}
-        self._invocation_context = invocation_context
-
-
 class MockMemoryCallbackContext:
     """Mock CallbackContext for memory service callbacks.
 
@@ -278,20 +257,6 @@ def mock_state() -> MockState:
 def mock_content() -> MockContent:
     """Create a mock content with test data."""
     return MockContent({"text": "Hello, agent!"})
-
-
-@pytest.fixture
-def mock_location_callback_context() -> MockLocationCallbackContext:
-    """Create a mock location callback context with session for testing."""
-    session = MockSession(user_id="test_user_123")
-    invocation_context = MockInvocationContext(session=session)
-    return MockLocationCallbackContext(state={}, invocation_context=invocation_context)
-
-
-@pytest.fixture
-def mock_location_callback_context_no_session() -> MockLocationCallbackContext:
-    """Create a mock location callback context without session for testing."""
-    return MockLocationCallbackContext(state={})
 
 
 @pytest.fixture

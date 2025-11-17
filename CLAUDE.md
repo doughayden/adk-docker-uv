@@ -15,6 +15,17 @@ This is an ADK (Agent Development Kit) application containerized with Docker and
 
 ## Development Commands
 
+### Template Initialization (One-Time)
+
+If this repo was created from the template, initialize it first:
+
+```bash
+uv run init_template.py --dry-run  # Preview changes
+uv run init_template.py            # Apply changes
+```
+
+Script renames package, updates config/docs, resets changelog. Creates audit log at `init_template_results.md` (gitignored).
+
 ### Running Locally
 
 ```bash

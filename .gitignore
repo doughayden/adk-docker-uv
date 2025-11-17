@@ -209,3 +209,6 @@ __marimo__/
 ### Custom patterns
 sessions.db
 .log/
+
+# Template initialization output files
+init_template_*.md

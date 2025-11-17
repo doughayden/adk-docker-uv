@@ -36,7 +36,7 @@ src = ["src"]
 target-version = "py313"
 line-length = 88
 fix = true
-extend-exclude = ["notebooks"]
+extend-exclude = ["notebooks", "init_template.py"]
 
 [tool.ruff.format]
 quote-style = "double"
@@ -66,6 +66,7 @@ select = [
 python_version = "3.13"
 mypy_path = "src"
 packages = ["adk_docker_uv"]
+exclude = ["init_template.py"]
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true

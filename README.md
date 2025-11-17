@@ -5,6 +5,17 @@
 
 ADK on Docker, optimized with uv
 
+## Template Setup
+
+**If you created this repository from the template**, run the initialization script once:
+
+```bash
+uv run init_template.py
+# Or preview changes first: uv run init_template.py --dry-run
+```
+
+This renames the package, updates configuration files, and resets the changelog. Review changes with `git status`, then commit.
+
 ## Quickstart
 
 **1. Authentication** (one-time setup):

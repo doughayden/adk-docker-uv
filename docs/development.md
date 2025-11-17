@@ -8,6 +8,33 @@ This document covers development workflows, code quality standards, and testing.
 - `uv` package manager
 - Google Cloud SDK (optional, for Vertex AI authentication)
 
+## Template Initialization
+
+**If you created this repository from the template**, initialize it once after cloning:
+
+```bash
+# Preview changes without making them
+uv run init_template.py --dry-run
+
+# Apply changes
+uv run init_template.py
+```
+
+This script:
+- Renames the package from `adk_docker_uv` to match your repository name
+- Updates all configuration, documentation, and test files
+- Resets `CHANGELOG.md` with a fresh template
+- Regenerates the UV lockfile
+
+After running, review changes with `git status` and commit:
+
+```bash
+git add -A
+git commit -m "chore: initialize from template"
+```
+
+The script creates `init_template_results.md` as an audit log of changes. Dry-run mode creates `init_template_dry_run.md` instead. Both are gitignored.
+
 ## Development Commands
 
 ### Running the Server
