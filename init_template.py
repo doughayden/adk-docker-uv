@@ -14,6 +14,7 @@ The script performs:
 - Directory renaming (src/adk_docker_uv → src/{package_name})
 - File content updates (package imports, configuration, documentation)
 - GitHub Actions badge URL updates
+- CODEOWNERS update with authenticated GitHub username
 - Version reset to 0.1.0 in pyproject.toml
 - CHANGELOG.md replacement with fresh template
 - UV lockfile regeneration
@@ -55,6 +56,7 @@ class TemplateConfig(BaseModel):
     Attributes:
         repo_name: GitHub repository name in kebab-case format.
         github_owner: GitHub repository owner (username or organization).
+        github_user: Authenticated GitHub username (optional, for CODEOWNERS).
         package_name: Python package name (computed from repo_name).
     """
 
@@ -66,6 +68,10 @@ class TemplateConfig(BaseModel):
     github_owner: str = Field(
         ...,
         description="GitHub repository owner (username or organization)",
+    )
+    github_user: str | None = Field(
+        default=None,
+        description="Authenticated GitHub username (for CODEOWNERS)",
     )
 
     @computed_field  # type: ignore[prop-decorator]
@@ -194,6 +200,29 @@ def get_github_info_from_git() -> tuple[str, str] | None:
         return None
 
 
+def get_github_user() -> str | None:
+    """Get authenticated GitHub username using gh CLI.
+
+    Returns:
+        GitHub username from gh CLI, or None if unavailable.
+    """
+    try:
+        result = subprocess.run(
+            ["gh", "api", "user", "--jq", ".login"],  # noqa: S603, S607
+            capture_output=True,
+            text=True,
+            check=True,
+            timeout=5,
+        )
+        return result.stdout.strip()
+    except (
+        subprocess.CalledProcessError,
+        FileNotFoundError,
+        subprocess.TimeoutExpired,
+    ):
+        return None
+
+
 def get_validated_config(dry_run: bool = False) -> TemplateConfig:
     """Auto-detect and validate repository configuration.
 
@@ -213,7 +242,11 @@ def get_validated_config(dry_run: bool = False) -> TemplateConfig:
     """
     if dry_run:
         print("🔍 DRY RUN MODE - Using example values\n")
-        return TemplateConfig(repo_name="my-agent", github_owner="example-user")
+        return TemplateConfig(
+            repo_name="my-agent",
+            github_owner="example-org",
+            github_user="example-user",
+        )
 
     print("🚀 Initializing repository from template\n")
     print("This script will:")
@@ -222,9 +255,10 @@ def get_validated_config(dry_run: bool = False) -> TemplateConfig:
     print("  3. Update configuration files")
     print("  4. Update documentation")
     print("  5. Update GitHub Actions badge URLs")
-    print("  6. Reset version to 0.1.0")
-    print("  7. Reset CHANGELOG.md")
-    print("  8. Regenerate UV lockfile\n")
+    print("  6. Update CODEOWNERS with your GitHub username")
+    print("  7. Reset version to 0.1.0")
+    print("  8. Reset CHANGELOG.md")
+    print("  9. Regenerate UV lockfile\n")
 
     # Auto-detect repository name and owner from git
     github_info = get_github_info_from_git()
@@ -240,11 +274,23 @@ def get_validated_config(dry_run: bool = False) -> TemplateConfig:
 
     detected_owner, detected_repo = github_info
     print(f"✨ Detected GitHub owner: {detected_owner}")
-    print(f"✨ Detected repository name: {detected_repo}\n")
+    print(f"✨ Detected repository name: {detected_repo}")
+
+    # Auto-detect authenticated GitHub user for CODEOWNERS
+    detected_user = get_github_user()
+    if detected_user:
+        print(f"✨ Detected GitHub user: {detected_user}\n")
+    else:
+        print("⚠️  Could not detect GitHub user (gh CLI not available)")
+        print("   CODEOWNERS will not be updated\n")
 
     # Validate repository name conforms to kebab-case
     try:
-        config = TemplateConfig(repo_name=detected_repo, github_owner=detected_owner)
+        config = TemplateConfig(
+            repo_name=detected_repo,
+            github_owner=detected_owner,
+            github_user=detected_user,
+        )
         print("✅ Repository name is valid kebab-case")
         print(f"✨ Package name (auto-derived): {config.package_name}\n")
         return config
@@ -426,9 +472,13 @@ def print_summary(config: TemplateConfig, dry_run: bool = False) -> None:
     print(f"  • Package name: {ORIGINAL_PACKAGE_NAME} → {config.package_name}")
     print(f"  • Repo name: {ORIGINAL_REPO_NAME} → {config.repo_name}")
     print(f"  • GitHub owner: {ORIGINAL_GITHUB_OWNER} → {config.github_owner}")
+    if config.github_user:
+        print(f"  • GitHub user: {ORIGINAL_GITHUB_OWNER} → {config.github_user}")
     print(f"  • Directory: src/{ORIGINAL_PACKAGE_NAME}/ → src/{config.package_name}/")
     print("  • Updated configuration and test files")
     print("  • Updated GitHub Actions badge URLs")
+    if config.github_user:
+        print("  • Updated CODEOWNERS file")
     print("  • Removed template author from pyproject.toml")
     print("  • Reset version to 0.1.0 in pyproject.toml")
     print("  • Replaced CHANGELOG.md with fresh template")
@@ -465,8 +515,13 @@ def main() -> NoReturn:
             ORIGINAL_REPO_NAME: config.repo_name,
         }
 
+        # Add CODEOWNERS replacement if github_user is available
+        if config.github_user:
+            replacements[f"@{ORIGINAL_GITHUB_OWNER}"] = f"@{config.github_user}"
+
         # Files to update (paths relative to repo root)
         files_to_update = [
+            ".github/CODEOWNERS",
             "CLAUDE.md",
             "Dockerfile",
             "pyproject.toml",
