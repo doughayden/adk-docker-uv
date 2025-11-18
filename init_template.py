@@ -1,4 +1,9 @@
-"""Initialize repository from agent-engine-cicd-base template.
+"""Initialize repository from template.
+
+⚠️ NOTE: This is a one-time use initialization script, NOT part of the package.
+- Excluded from test coverage (not in src/, runs once per repo clone)
+- Excluded from ruff/mypy checks (see pyproject.toml)
+- No automated tests required (manual validation via --dry-run mode)
 
 This script automates the package name replacement process when creating
 a new repository from the template. Run once after creating from template:
@@ -285,12 +290,10 @@ def remove_authors_from_pyproject(dry_run: bool = False) -> None:
 
     content = pyproject_path.read_text()
 
-    # Remove the authors array (including multi-line format)
-    # Matches: authors = [\n    { name = "...", email = "..." }\n]
-    import re
-
+    # Remove the authors array (supports single or multiple authors)
+    # Matches: authors = [...] with any content between brackets
     modified = re.sub(
-        r"authors\s*=\s*\[\s*\{[^}]+\}\s*\]\s*\n",
+        r"authors\s*=\s*\[[^\]]*\]\s*\n?",
         "",
         content,
         flags=re.MULTILINE,
