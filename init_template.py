@@ -1,4 +1,9 @@
-"""Initialize repository from agent-engine-cicd-base template.
+"""Initialize repository from template.
+
+⚠️ NOTE: This is a one-time use initialization script, NOT part of the package.
+- Excluded from test coverage (not in src/, runs once per repo clone)
+- Excluded from ruff/mypy checks (see pyproject.toml)
+- No automated tests required (manual validation via --dry-run mode)
 
 This script automates the package name replacement process when creating
 a new repository from the template. Run once after creating from template:
@@ -271,6 +276,40 @@ def replace_in_file(
             print(f"  ⏭️  Would skip {file_path} (no changes needed)")
 
 
+def remove_authors_from_pyproject(dry_run: bool = False) -> None:
+    """Remove authors field from pyproject.toml.
+
+    Args:
+        dry_run: If True, only print what would be changed.
+    """
+    pyproject_path = Path("pyproject.toml")
+
+    if not pyproject_path.exists():
+        print("  ⚠️  Skipping pyproject.toml (not found)")
+        return
+
+    content = pyproject_path.read_text()
+
+    # Remove the authors array (supports single or multiple authors)
+    # Matches: authors = [...] with any content between brackets
+    modified = re.sub(
+        r"authors\s*=\s*\[[^\]]*\]\s*\n?",
+        "",
+        content,
+        flags=re.MULTILINE,
+    )
+
+    if content != modified:
+        if dry_run:
+            print("  📝 Would remove authors field from pyproject.toml")
+        else:
+            pyproject_path.write_text(modified)
+            print("  ✅ Removed authors field from pyproject.toml")
+    else:
+        if dry_run:
+            print("  ⏭️  Would skip pyproject.toml authors removal (not found)")
+
+
 def replace_changelog(dry_run: bool = False) -> None:
     """Replace CHANGELOG.md with fresh template.
 
@@ -336,6 +375,7 @@ def print_summary(config: TemplateConfig, dry_run: bool = False) -> None:
     print(f"  • Repo name: {ORIGINAL_REPO_NAME} → {config.repo_name}")
     print(f"  • Directory: src/{ORIGINAL_PACKAGE_NAME}/ → src/{config.package_name}/")
     print("  • Updated configuration and test files")
+    print("  • Removed template author from pyproject.toml")
     print("  • Replaced CHANGELOG.md with fresh template")
     print("  • Regenerated UV lockfile")
 
@@ -409,6 +449,10 @@ def main() -> NoReturn:
         for file_path_str in files_to_update:
             file_path = Path(file_path_str)
             replace_in_file(file_path, replacements, dry_run)
+
+        # Remove authors from pyproject.toml
+        print("\n👤 Removing template author:")
+        remove_authors_from_pyproject(dry_run)
 
         # Replace CHANGELOG
         print("\n📄 Replacing CHANGELOG:")
