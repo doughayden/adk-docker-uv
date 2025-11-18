@@ -36,6 +36,7 @@ from pydantic import BaseModel, Field, ValidationError, computed_field
 # Original template names - update these when reusing in other template projects
 ORIGINAL_PACKAGE_NAME = "adk_docker_uv"
 ORIGINAL_REPO_NAME = "adk-docker-uv"
+ORIGINAL_GITHUB_OWNER = "doughayden"
 
 # Output file names for logging results
 DRY_RUN_OUTPUT_FILE = "init_template_dry_run.md"
@@ -50,6 +51,7 @@ class TemplateConfig(BaseModel):
 
     Attributes:
         repo_name: GitHub repository name in kebab-case format.
+        github_owner: GitHub repository owner (username or organization).
         package_name: Python package name (computed from repo_name).
     """
 
@@ -57,6 +59,10 @@ class TemplateConfig(BaseModel):
         ...,
         pattern=r"^[a-z0-9]([a-z0-9-]*[a-z0-9])?$",
         description="GitHub repository name (kebab-case, e.g., 'my-agent')",
+    )
+    github_owner: str = Field(
+        ...,
+        description="GitHub repository owner (username or organization)",
     )
 
     @computed_field  # type: ignore[prop-decorator]
@@ -135,7 +141,7 @@ def dual_output_context(dry_run: bool = False) -> Generator[None]:
         print(f"\n📄 Output saved to: {output_file}")  # This prints to terminal only
 
 
-def parse_github_remote_url(url: str) -> dict[str, str] | None:
+def parse_github_remote_url(url: str) -> tuple[str, str] | None:
     """Parse GitHub owner and repo from remote URL.
 
     Supports both SSH and HTTPS formats:
@@ -146,26 +152,26 @@ def parse_github_remote_url(url: str) -> dict[str, str] | None:
         url: Git remote URL to parse.
 
     Returns:
-        Dictionary with 'owner' and 'repo' keys, or None if not a GitHub URL.
+        Tuple of (owner, repo), or None if not a GitHub URL.
     """
     # SSH format: git@github.com:owner/repo.git
     ssh_match = re.match(r"^git@github\.com:([^/]+)/(.+?)(?:\.git)?$", url)
     if ssh_match:
-        return {"owner": ssh_match.group(1), "repo": ssh_match.group(2)}
+        return (ssh_match.group(1), ssh_match.group(2))
 
     # HTTPS format: https://github.com/owner/repo.git
     https_match = re.match(r"^https://github\.com/([^/]+)/(.+?)(?:\.git)?$", url)
     if https_match:
-        return {"owner": https_match.group(1), "repo": https_match.group(2)}
+        return (https_match.group(1), https_match.group(2))
 
     return None
 
 
-def get_repo_name_from_git() -> str | None:
-    """Get repository name from git remote URL.
+def get_github_info_from_git() -> tuple[str, str] | None:
+    """Get GitHub owner and repository name from git remote URL.
 
     Returns:
-        Repository name from origin remote, or None if unavailable.
+        Tuple of (owner, repo) from origin remote, or None if unavailable.
     """
     try:
         result = subprocess.run(
@@ -175,8 +181,7 @@ def get_repo_name_from_git() -> str | None:
             check=True,
         )
         url = result.stdout.strip()
-        parsed = parse_github_remote_url(url)
-        return parsed["repo"] if parsed else None
+        return parse_github_remote_url(url)
     except (subprocess.CalledProcessError, FileNotFoundError):
         return None
 
@@ -200,7 +205,7 @@ def get_validated_config(dry_run: bool = False) -> TemplateConfig:
     """
     if dry_run:
         print("🔍 DRY RUN MODE - Using example values\n")
-        return TemplateConfig(repo_name="my-agent")
+        return TemplateConfig(repo_name="my-agent", github_owner="example-user")
 
     print("🚀 Initializing repository from template\n")
     print("This script will:")
@@ -208,14 +213,16 @@ def get_validated_config(dry_run: bool = False) -> TemplateConfig:
     print(f"  2. Rename src/{ORIGINAL_PACKAGE_NAME}/ to your package name")
     print("  3. Update configuration files")
     print("  4. Update documentation")
-    print("  5. Reset CHANGELOG.md")
-    print("  6. Regenerate UV lockfile\n")
+    print("  5. Update GitHub Actions badge URLs")
+    print("  6. Reset version to 0.1.0")
+    print("  7. Reset CHANGELOG.md")
+    print("  8. Regenerate UV lockfile\n")
 
-    # Auto-detect repository name from git
-    detected_repo = get_repo_name_from_git()
+    # Auto-detect repository name and owner from git
+    github_info = get_github_info_from_git()
 
-    if not detected_repo:
-        print("❌ Failed to detect repository name from git remote.\n")
+    if not github_info:
+        print("❌ Failed to detect repository info from git remote.\n")
         print("This script requires a git repository with a configured remote.")
         print("\nPlease ensure:")
         print("  1. You created this repository from the template on GitHub")
@@ -223,11 +230,13 @@ def get_validated_config(dry_run: bool = False) -> TemplateConfig:
         print("  3. The remote is configured (git remote -v)\n")
         sys.exit(1)
 
+    detected_owner, detected_repo = github_info
+    print(f"✨ Detected GitHub owner: {detected_owner}")
     print(f"✨ Detected repository name: {detected_repo}\n")
 
     # Validate repository name conforms to kebab-case
     try:
-        config = TemplateConfig(repo_name=detected_repo)
+        config = TemplateConfig(repo_name=detected_repo, github_owner=detected_owner)
         print("✅ Repository name is valid kebab-case")
         print(f"✨ Package name (auto-derived): {config.package_name}\n")
         return config
@@ -310,6 +319,37 @@ def remove_authors_from_pyproject(dry_run: bool = False) -> None:
             print("  ⏭️  Would skip pyproject.toml authors removal (not found)")
 
 
+def reset_version_in_pyproject(dry_run: bool = False) -> None:
+    """Reset version to 0.1.0 in pyproject.toml.
+
+    Args:
+        dry_run: If True, only print what would be changed.
+    """
+    pyproject_path = Path("pyproject.toml")
+
+    if not pyproject_path.exists():
+        print("  ⚠️  Skipping pyproject.toml (not found)")
+        return
+
+    content = pyproject_path.read_text()
+
+    # Reset version to 0.1.0
+    # Matches: version = "X.Y.Z" at start of line (after optional whitespace)
+    # This avoids matching "version" in the middle of strings elsewhere
+    modified = re.sub(
+        r'^(\s*)version\s*=\s*"[^"]*"',
+        r'\1version = "0.1.0"',
+        content,
+        flags=re.MULTILINE,
+    )
+
+    if dry_run:
+        print("  📝 Would reset version to 0.1.0 in pyproject.toml")
+    else:
+        pyproject_path.write_text(modified)
+        print("  ✅ Reset version to 0.1.0 in pyproject.toml")
+
+
 def replace_changelog(dry_run: bool = False) -> None:
     """Replace CHANGELOG.md with fresh template.
 
@@ -373,9 +413,12 @@ def print_summary(config: TemplateConfig, dry_run: bool = False) -> None:
     print(f"\n✅ {verb} the following changes:")
     print(f"  • Package name: {ORIGINAL_PACKAGE_NAME} → {config.package_name}")
     print(f"  • Repo name: {ORIGINAL_REPO_NAME} → {config.repo_name}")
+    print(f"  • GitHub owner: {ORIGINAL_GITHUB_OWNER} → {config.github_owner}")
     print(f"  • Directory: src/{ORIGINAL_PACKAGE_NAME}/ → src/{config.package_name}/")
     print("  • Updated configuration and test files")
+    print("  • Updated GitHub Actions badge URLs")
     print("  • Removed template author from pyproject.toml")
+    print("  • Reset version to 0.1.0 in pyproject.toml")
     print("  • Replaced CHANGELOG.md with fresh template")
     print("  • Regenerated UV lockfile")
 
@@ -407,6 +450,7 @@ def main() -> NoReturn:
         replacements = {
             ORIGINAL_PACKAGE_NAME: config.package_name,
             ORIGINAL_REPO_NAME: config.repo_name,
+            f"https://github.com/{ORIGINAL_GITHUB_OWNER}/{ORIGINAL_REPO_NAME}/": f"https://github.com/{config.github_owner}/{config.repo_name}/",
         }
 
         # Files to update (paths relative to repo root)
@@ -453,6 +497,10 @@ def main() -> NoReturn:
         # Remove authors from pyproject.toml
         print("\n👤 Removing template author:")
         remove_authors_from_pyproject(dry_run)
+
+        # Reset version in pyproject.toml
+        print("\n🔢 Resetting version:")
+        reset_version_in_pyproject(dry_run)
 
         # Replace CHANGELOG
         print("\n📄 Replacing CHANGELOG:")
