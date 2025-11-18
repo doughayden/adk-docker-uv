@@ -11,8 +11,10 @@ a new repository from the template. Run once after creating from template:
     uv run init_template.py
 
 The script performs:
-- Directory renaming (src/agent_engine_cicd_base → src/{package_name})
+- Directory renaming (src/adk_docker_uv → src/{package_name})
 - File content updates (package imports, configuration, documentation)
+- GitHub Actions badge URL updates
+- Version reset to 0.1.0 in pyproject.toml
 - CHANGELOG.md replacement with fresh template
 - UV lockfile regeneration
 
@@ -20,6 +22,7 @@ Reusing in other template projects:
     To adapt this script for another template repository, update the constants:
     - ORIGINAL_PACKAGE_NAME: The original Python package name (snake_case)
     - ORIGINAL_REPO_NAME: The original repository name (kebab-case)
+    - ORIGINAL_GITHUB_OWNER: The original GitHub owner/organization
 """
 
 import re
@@ -179,10 +182,15 @@ def get_github_info_from_git() -> tuple[str, str] | None:
             capture_output=True,
             text=True,
             check=True,
+            timeout=5,
         )
         url = result.stdout.strip()
         return parse_github_remote_url(url)
-    except (subprocess.CalledProcessError, FileNotFoundError):
+    except (
+        subprocess.CalledProcessError,
+        FileNotFoundError,
+        subprocess.TimeoutExpired,
+    ):
         return None
 
 
@@ -394,11 +402,15 @@ def run_uv_sync(dry_run: bool = False) -> None:
             ["uv", "sync"],  # noqa: S603, S607
             check=True,
             capture_output=True,
+            timeout=60,
         )
         print("  ✅ UV lockfile regenerated")
     except subprocess.CalledProcessError as e:
         print(f"  ❌ Failed to run uv sync: {e}")
         print(f"     stderr: {e.stderr.decode()}")
+        sys.exit(1)
+    except subprocess.TimeoutExpired:
+        print("  ❌ UV sync timed out after 60 seconds")
         sys.exit(1)
 
 
