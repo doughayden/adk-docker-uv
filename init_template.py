@@ -214,7 +214,7 @@ def get_validated_config(dry_run: bool = False) -> TemplateConfig:
     """
     if dry_run:
         print("🔍 DRY RUN MODE - Using example values\n")
-        return TemplateConfig(repo_name="my-agent", github_owner="example-org")
+        return TemplateConfig(repo_name="my-agent", github_owner="example-owner")
 
     print("🚀 Initializing repository from template\n")
     print("This script will:")
