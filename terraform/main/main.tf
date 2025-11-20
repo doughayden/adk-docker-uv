@@ -46,6 +46,13 @@ resource "google_cloud_run_v2_service" "app" {
   launch_stage        = "GA"
   ingress             = "INGRESS_TRAFFIC_ALL"
 
+  # Service-level scaling (updates without creating new revisions)
+  scaling {
+    # Set min_instance_count to 1 or more in production to avoid cold start latency
+    # min_instance_count = 1
+    max_instance_count = 100
+  }
+
   template {
     service_account       = google_service_account.app.email
     timeout               = "300s"
@@ -96,12 +103,5 @@ resource "google_cloud_run_v2_service" "app" {
 
     # Explicitly set the concurrency (defaults to 80 for CPU >= 1).
     max_instance_request_concurrency = 100
-
-    scaling {
-      # Set min_instance_count to 1 or more in production to avoid cold start latency.
-      min_instance_count = 1
-      max_instance_count = 100
-    }
-
   }
 }
