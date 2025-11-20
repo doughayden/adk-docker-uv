@@ -2,11 +2,16 @@ data "dotenv" "adk" {
   filename = "${path.cwd}/.env"
 }
 
+data "terraform_remote_state" "main" {
+  backend   = "local"
+  workspace = "sandbox"
+}
+
 # Get required Terraform variables from the project .env file unless explicitly passes as a root module input
 locals {
   agent_name = coalesce(var.agent_name, data.dotenv.adk.entries.AGENT_NAME)
   project    = coalesce(var.project, data.dotenv.adk.entries.GOOGLE_CLOUD_PROJECT)
-  location   = coalesce(var.region, data.dotenv.adk.entries.GOOGLE_CLOUD_LOCATION)
+  location   = coalesce(var.location, data.dotenv.adk.entries.GOOGLE_CLOUD_LOCATION)
 
   # Prepare for future regional Cloud Run redundancy
   locations = toset([local.location])
@@ -23,6 +28,8 @@ locals {
     AGENT_ENGINE              = data.dotenv.adk.entries.AGENT_ENGINE
     ROOT_AGENT_MODEL          = coalesce(var.model, try(data.dotenv.adk.entries.ROOT_AGENT_MODEL, local.default_model))
   }
+
+  docker_image = coalesce(var.docker_image, try(data.terraform_remote_state.main.outputs.deployed_image, null))
 }
 
 resource "google_service_account" "app" {
@@ -59,7 +66,7 @@ resource "google_cloud_run_v2_service" "app" {
     execution_environment = "EXECUTION_ENVIRONMENT_GEN2"
 
     containers {
-      image = var.docker_image
+      image = local.docker_image
 
       ports {
         name           = "http1"

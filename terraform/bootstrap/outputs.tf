@@ -8,8 +8,8 @@ output "project" {
   value       = local.project
 }
 
-output "region" {
-  description = "Google Cloud region"
+output "location" {
+  description = "Google Cloud location (Compute region)"
   value       = local.location
 }
 

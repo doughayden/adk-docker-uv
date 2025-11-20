@@ -3,8 +3,8 @@ output "project" {
   value       = local.project
 }
 
-output "region" {
-  description = "Compute region"
+output "location" {
+  description = "Google Cloud location (Compute region)"
   value       = local.location
 }
 
@@ -19,7 +19,7 @@ output "service_account_roles" {
 }
 
 output "cloud_run_services" {
-  description = "Cloud Run service details per region"
+  description = "Cloud Run service details per location"
   value = { for loc, svc in google_cloud_run_v2_service.app :
     loc => {
       latest_ready_revision = split("revisions/", svc.latest_ready_revision)[1]
@@ -27,4 +27,9 @@ output "cloud_run_services" {
       uri                   = svc.uri
     }
   }
+}
+
+output "deployed_image" {
+  description = "Deployed Docker image URI"
+  value       = local.docker_image
 }

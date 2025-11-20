@@ -12,8 +12,8 @@ variable "project" {
   default     = null
 }
 
-variable "region" {
-  description = "Google Cloud region"
+variable "location" {
+  description = "Google Cloud location (Compute region)"
   type        = string
   nullable    = true
   default     = null
@@ -41,4 +41,6 @@ variable "model" {
 variable "docker_image" {
   description = "Docker image to deploy to Cloud Run"
   type        = string
+  nullable    = true
+  default     = null
 }
