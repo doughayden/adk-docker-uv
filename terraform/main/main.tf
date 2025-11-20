@@ -86,6 +86,12 @@ resource "google_cloud_run_v2_service" "app" {
         }
       }
 
+      # Ensure production workloads never enable agent hot reload
+      env {
+        name  = "RELOAD_AGENTS"
+        value = "false"
+      }
+
     }
 
     # Explicitly set the concurrency (defaults to 80 for CPU >= 1).

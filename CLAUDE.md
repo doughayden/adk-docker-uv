@@ -256,6 +256,10 @@ LOG_LEVEL=DEBUG
 HOST=127.0.0.1
 PORT=8000
 
+# Enable agent hot reloading on file changes (default: false)
+# Development-only: enables file watching for .py and .yaml changes
+RELOAD_AGENTS=true
+
 # Override default agent model (default: gemini-2.5-flash)
 ROOT_AGENT_MODEL=gemini-2.5-flash
 
@@ -351,7 +355,8 @@ The project includes two Terraform modules for infrastructure management:
 - Environment variables sourced from `.env`
 - Request-based billing (cpu_idle = true)
 - Configurable scaling (min/max instances)
-- Health probes with TCP socket check on port 8080
+- Health probes with TCP socket check on port 8000
+- Production safety: `RELOAD_AGENTS` explicitly set to false
 
 **Required variable:** `docker_image` - Image URI from Artifact Registry (typically set via CI/CD or command line)
 

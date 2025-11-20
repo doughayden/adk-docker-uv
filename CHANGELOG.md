@@ -26,6 +26,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - GitHub Actions workflows now use Variables instead of Secrets for non-sensitive identifiers (GCP_PROJECT_ID, GCP_WORKLOAD_IDENTITY_PROVIDER)
 - Renamed `ARTIFACT_REGISTRY_URL` to `ARTIFACT_REGISTRY_URI` for accuracy
 - Simplified `AGENT_ENGINE_URI` to `AGENT_ENGINE` (URI prefix `agentengine://` now added in code)
+- Server now defaults to `127.0.0.1` instead of `localhost` for explicit IPv4 binding
+- Dockerfile now explicitly sets `PORT=8000` environment variable for consistency
+- `RELOAD_AGENTS` environment variable added for optional agent hot reloading (defaults to false)
 
 ## [0.2.0] - 2025-11-17
 
