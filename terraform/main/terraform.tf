@@ -1,4 +1,5 @@
 terraform {
+  required_version = ">= 1.14.0, < 2.0.0"
   required_providers {
     dotenv = {
       source  = "germanbrew/dotenv"
@@ -9,5 +10,4 @@ terraform {
       version = ">= 7.12.0, < 8.0.0"
     }
   }
-  required_version = ">= 1.12.2"
 }
