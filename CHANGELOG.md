@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2025-11-20
+
 ### Added
 - CODEOWNERS file with fresh template replacement during init
 - Init script now updates GitHub Actions badge URLs to point to new repository
@@ -73,3 +75,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Type checking excludes tests (standard pytest pattern): mypy checks only production code
 - Ruff excludes notebooks from linting
 - Notebooks for Agent Engine creation
+
+[Unreleased]: https://github.com/doughayden/adk-docker-uv/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/doughayden/adk-docker-uv/compare/v0.2.0...v0.3.0
+[0.2.0]: https://github.com/doughayden/adk-docker-uv/compare/v0.1.0...v0.2.0
+[0.1.0]: https://github.com/doughayden/adk-docker-uv/releases/tag/v0.1.0
