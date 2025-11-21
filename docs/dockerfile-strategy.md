@@ -265,7 +265,8 @@ ENV VIRTUAL_ENV=/app/.venv \
     PATH="/app/.venv/bin:$PATH" \
     PYTHONUNBUFFERED=1 \
     AGENT_DIR=/app/src \
-    HOST=0.0.0.0
+    HOST=0.0.0.0 \
+    PORT=8000
 ```
 **What:** Configure runtime environment
 **Why:**
@@ -275,7 +276,8 @@ ENV VIRTUAL_ENV=/app/.venv \
 | `VIRTUAL_ENV=/app/.venv` | Tell Python which venv to use |
 | `PATH="/app/.venv/bin:$PATH"` | Make venv binaries available (python, uvicorn) |
 | `PYTHONUNBUFFERED=1` | Don't buffer stdout/stderr (better logs in Docker) |
-| `HOST=0.0.0.0` | Explicitly bind all interfaces for containers (server.py defaults to localhost) |
+| `HOST=0.0.0.0` | Explicitly bind all interfaces for containers (server.py defaults to 127.0.0.1) |
+| `PORT=8000` | Explicitly set default port (matches EXPOSE and server.py default) |
 | `AGENT_DIR=/app/src` | Override agent directory path for ADK (see AGENT_DIR section below) |
 
 ---
@@ -349,8 +351,8 @@ CMD ["python", "-m", "adk_docker_uv.server"]
   - Sets up file logging automatically (via `setup_file_logging()`)
   - Future: Will support conditional logging backends (file vs OpenTelemetry)
   - Consistent entry point for both local dev (`uv run server`) and Docker
-- `main()` calls `uvicorn.run(app, host=os.getenv("HOST", "localhost"), port=...)`
-  - Secure default: localhost (only local connections)
+- `main()` calls `uvicorn.run(app, host=os.getenv("HOST", "127.0.0.1"), port=...)`
+  - Secure default: 127.0.0.1 (only local connections)
   - Dockerfile sets `HOST=0.0.0.0` to explicitly bind all interfaces for containers
   - Respects HOST and PORT environment variables for flexibility
 - JSON array format (exec form, not shell form) → more efficient

@@ -32,8 +32,8 @@ jobs:
         id: auth
         uses: google-github-actions/auth@v3
         with:
-          project_id: ${{ secrets.GCP_PROJECT_ID }}
-          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          project_id: ${{ vars.GCP_PROJECT_ID }}
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
 
       - name: Run Claude Auto Review
         uses: anthropics/claude-code-action@v1
@@ -78,8 +78,8 @@ jobs:
         id: auth
         uses: google-github-actions/auth@v3
         with:
-          project_id: ${{ secrets.GCP_PROJECT_ID }}
-          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          project_id: ${{ vars.GCP_PROJECT_ID }}
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
 
       - name: Run Claude Manual Action
         uses: anthropics/claude-code-action@v1
@@ -109,7 +109,7 @@ jobs:
 # https://cloud.google.com/iam/docs/workload-identity-federation-with-deployment-pipelines
 # https://github.com/google-github-actions/auth?tab=readme-ov-file#preferred-direct-workload-identity-federation
 # 
-# Configure Repository Secrets
-# https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/use-secrets
-# Set the GitHub Actions > Repository secrets GCP_PROJECT_ID to the Google Cloud project ID
-# Set the GitHub Actions > Repository secrets GCP_WORKLOAD_IDENTITY_PROVIDER to the workload ID federation principal identifier
+# Configure Repository Variables
+# https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/use-variables
+# Set the GitHub Actions > Repository variables GCP_PROJECT_ID to the Google Cloud project ID
+# Set the GitHub Actions > Repository variables GCP_WORKLOAD_IDENTITY_PROVIDER to the workload ID federation principal identifier

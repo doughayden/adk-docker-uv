@@ -15,6 +15,37 @@ This is an ADK (Agent Development Kit) application containerized with Docker and
 
 ## Development Commands
 
+### Terraform Infrastructure Setup (One-Time)
+
+Initialize GCP and GitHub resources with Terraform:
+
+```bash
+# Configure .env with required values:
+# - AGENT_NAME
+# - GOOGLE_CLOUD_PROJECT
+# - GOOGLE_CLOUD_LOCATION
+# - GITHUB_REPO_NAME
+# - GITHUB_REPO_OWNER
+
+# Initialize Terraform and select workspace (run from repo root)
+terraform -chdir=terraform/bootstrap init
+terraform -chdir=terraform/bootstrap workspace select sandbox  # or: workspace new sandbox
+
+# Preview changes
+terraform -chdir=terraform/bootstrap plan
+
+# Apply infrastructure
+terraform -chdir=terraform/bootstrap apply
+
+# Outputs include WIF provider name, registry URI, reasoning engine ID
+```
+
+The bootstrap module creates:
+- Workload Identity Federation for GitHub Actions
+- Artifact Registry repository with cleanup policies
+- Vertex AI Reasoning Engine for session/memory
+- GitHub Actions Variables (auto-configured)
+
 ### Template Initialization (One-Time)
 
 If this repo was created from the template, initialize it first:
@@ -35,7 +66,7 @@ cp .env.example .env
 #   - GOOGLE_API_KEY for Gemini Developer API
 #   - GOOGLE_CLOUD_PROJECT + GOOGLE_CLOUD_LOCATION for Vertex AI
 
-# Run server (default: API-only at http://localhost:8000)
+# Run server (default: API-only at http://127.0.0.1:8000)
 uv run server
 
 # Enable web UI (set SERVE_WEB_INTERFACE=true in .env)
@@ -220,16 +251,21 @@ SERVE_WEB_INTERFACE=true
 # Logging level (default: INFO)
 LOG_LEVEL=DEBUG
 
-# Server configuration (defaults: HOST=localhost, PORT=8000)
+# Server configuration (defaults: HOST=127.0.0.1, PORT=8000)
 # Note: Dockerfile overrides HOST=0.0.0.0 for container networking
-HOST=localhost
+HOST=127.0.0.1
 PORT=8000
+
+# Enable agent hot reloading on file changes (default: false)
+# Development-only: enables file watching for .py and .yaml changes
+RELOAD_AGENTS=true
 
 # Override default agent model (default: gemini-2.5-flash)
 ROOT_AGENT_MODEL=gemini-2.5-flash
 
 # Session/memory persistence via Agent Engine (default: in-memory ephemeral)
-AGENT_ENGINE_URI=agentengine://projects/123/locations/us-central1/reasoningEngines/456
+# Note: URI prefix "agentengine://" is added automatically in code
+AGENT_ENGINE=projects/123/locations/us-central1/reasoningEngines/456
 
 # Artifact storage via GCS bucket (default: in-memory ephemeral)
 ARTIFACT_SERVICE_URI=gs://your-artifact-storage-bucket
@@ -237,7 +273,7 @@ ARTIFACT_SERVICE_URI=gs://your-artifact-storage-bucket
 # CORS allowed origins (JSON array string)
 # Parsed with validation and fallback to localhost defaults
 # Invalid JSON falls back to default with warning
-ALLOWED_ORIGINS='["https://your-domain.com", "http://localhost:3000"]'
+ALLOWED_ORIGINS='["https://your-domain.com", "http://127.0.0.1:3000"]'
 ```
 
 ## Dependency Management
@@ -270,6 +306,89 @@ GitHub Actions workflows in `.github/workflows/`:
 - **code-quality.yml**: Runs ruff format, ruff check, mypy
 - **docker-build-push.yml**: Builds and pushes Docker images to registry
 - **required-checks.yml**: Composite checks for branch protection
+
+**Authentication:** Workflows use Workload Identity Federation (no service account keys). Configuration managed by Terraform.
+
+**GitHub Variables vs Secrets:**
+- **Variables**: Non-sensitive identifiers (GCP_PROJECT_ID, GCP_WORKLOAD_IDENTITY_PROVIDER, ARTIFACT_REGISTRY_URI, IMAGE_NAME, ARTIFACT_REGISTRY_LOCATION)
+- **Secrets**: Actual credentials only (not used with WIF - OIDC tokens provide authentication)
+- Rationale: Identifiers are not secrets; GCP security model relies on IAM policies, not obscurity
+
+## Terraform Infrastructure
+
+The project includes two Terraform modules for infrastructure management:
+
+### Bootstrap Module (`terraform/bootstrap/`)
+
+**Purpose:** Initial infrastructure setup and GitHub Actions integration.
+
+**Resources created:**
+- `google_iam_workload_identity_pool`: WIF pool for GitHub Actions
+- `google_iam_workload_identity_pool_provider`: GitHub OIDC provider with repository attribute condition
+- `google_project_iam_member`: Direct principal binding (no service account impersonation)
+- `google_artifact_registry_repository`: Docker repository with cleanup policies
+- `google_vertex_ai_reasoning_engine`: Session and memory persistence service
+- `github_actions_variable`: Auto-configured Variables from Terraform outputs
+
+**Cleanup policies:**
+1. Delete untagged images (intermediate layers)
+2. Delete tagged images older than 30 days
+3. **EXCEPT** keep 5 most recent versions (regardless of age)
+4. **EXCEPT** keep buildcache indefinitely (critical for fast builds)
+
+**Configuration:** Reads from `.env` file using `dotenv` provider, supports variable overrides.
+
+**IAM roles granted to GitHub Actions:**
+- `roles/aiplatform.user`: Vertex AI access
+- `roles/artifactregistry.writer`: Push Docker images
+
+### Main Module (`terraform/main/`)
+
+**Purpose:** Cloud Run deployment configuration.
+
+**Resources created:**
+- `google_service_account`: Cloud Run service-attached identity
+- `google_project_iam_member`: Service account permissions
+- `google_cloud_run_v2_service`: Cloud Run deployment with scaling and resource configuration
+
+**Key features:**
+- Environment variables sourced from `.env`
+- Request-based billing (cpu_idle = true)
+- Service-level scaling configuration with max instances (100) and configurable min instances
+- Health probes with TCP socket check on port 8000
+- Production safety: `RELOAD_AGENTS` explicitly set to false
+
+**Optional variable:** `docker_image` - Image URI from Artifact Registry (nullable with default for infrastructure-only applies)
+
+### Terraform Naming Conventions
+
+- **Variable naming**: Use `project` (not `project_id`) for GCP project identifier
+- **Local variables**: Prefer descriptive names (`local.agent_name`, `local.location`)
+- **Resource IDs**: Use `agent_name` as base for consistent naming across resources
+
+### Running Terraform
+
+**Workspace pattern:** Both modules use the `-chdir` flag (run from repo root) and workspace isolation.
+
+```bash
+# Bootstrap module (one-time setup)
+terraform -chdir=terraform/bootstrap init
+terraform -chdir=terraform/bootstrap workspace select sandbox  # or create: workspace new sandbox
+terraform -chdir=terraform/bootstrap plan
+terraform -chdir=terraform/bootstrap apply
+
+# Main module (deployment updates)
+terraform -chdir=terraform/main init
+terraform -chdir=terraform/main workspace select sandbox
+terraform -chdir=terraform/main plan -var="docker_image=<registry-uri>/<image>:tag"
+terraform -chdir=terraform/main apply -var="docker_image=<registry-uri>/<image>:tag"
+```
+
+**Current workspaces:** Both `bootstrap` and `main` modules use `sandbox` workspace (example only - use any workspace name).
+
+**Docker image recycling pattern:** The `main` module reads its own prior state (`data.terraform_remote_state.main`) to "recycle" the `docker_image` value from the last deployment. This allows infrastructure-only updates (scaling, env vars) without requiring the image URI to be passed explicitly. The `docker_image` variable uses `coalesce()` to fall back to the previous deployment's image if not provided.
+
+**State management:** Backend configs are commented out by default (uses local state). For production, uncomment `backend.tf` and configure GCS bucket for state storage. When switching to GCS backend, also update the `data.terraform_remote_state.main` backend configuration to match.
 
 ## Project-Specific Patterns
 
@@ -317,7 +436,7 @@ from adk_docker_uv.utils import parse_json_list_env
 # Parses JSON array with validation and fallback
 origins = parse_json_list_env(
     env_key="ALLOWED_ORIGINS",
-    default='["http://localhost"]',
+    default='["http://127.0.0.1"]',
 )
 ```
 

@@ -18,7 +18,7 @@ Configure these in your repository settings under **Settings > Secrets and varia
 | Variable Name | Description | Example Value |
 |---------------|-------------|---------------|
 | `IMAGE_NAME` | Docker image name (without registry URL or tags) | `adk-docker-uv` |
-| `ARTIFACT_REGISTRY_URL` | Full Artifact Registry repository URL (without image name) | `us-central1-docker.pkg.dev/your-project/docker-images` |
+| `ARTIFACT_REGISTRY_URI` | Full Artifact Registry repository URL (without image name) | `us-central1-docker.pkg.dev/your-project/docker-images` |
 | `ARTIFACT_REGISTRY_LOCATION` | Artifact Registry location (region) | `us-central1` |
 
 ## Workflow Behavior
