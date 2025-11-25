@@ -54,8 +54,8 @@ jobs:
     name: Extract Metadata
     runs-on: ubuntu-latest
     outputs:
-      tags: ${{ steps.meta.outputs.tags }}
-      image_uri: ${{ steps.meta.outputs.image_uri }}
+      tags: ${{ steps.extract.outputs.tags }}
+      image_uri: ${{ steps.extract.outputs.image_uri }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
@@ -63,7 +63,7 @@ jobs:
           fetch-depth: 0
 
       - name: Extract metadata
-        id: meta
+        id: extract
         run: |
           REGISTRY="${{ vars.ARTIFACT_REGISTRY_URI }}"
           IMAGE_NAME="${{ vars.IMAGE_NAME }}"

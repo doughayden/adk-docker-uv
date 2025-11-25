@@ -29,13 +29,15 @@ variable "docker_image" {
 variable "log_level" {
   description = "Agent app logging verbosity"
   type        = string
-  default     = "INFO"
+  nullable    = true
+  default     = null
 }
 
 variable "serve_web_interface" {
   description = "Enable web UI"
   type        = string
-  default     = "FALSE"
+  nullable    = true
+  default     = null
 }
 
 variable "agent_engine" {
@@ -56,17 +58,20 @@ variable "artifact_service_uri" {
 variable "allow_origins" {
   description = "Allow these origins for CORS (JSON array string)"
   type        = string
-  default     = "[\"http://127.0.0.1\", \"http://127.0.0.1:8000\"]"
+  nullable    = true
+  default     = null
 }
 
 variable "root_agent_model" {
   description = "Root agent Vertex AI model name"
   type        = string
-  default     = "gemini-2.5-flash"
+  nullable    = true
+  default     = null
 }
 
 variable "adk_suppress_experimental_feature_warnings" {
   description = "Suppress ADK experimental feature warnings"
   type        = string
-  default     = "TRUE"
+  nullable    = true
+  default     = null
 }
