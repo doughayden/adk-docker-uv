@@ -24,6 +24,8 @@ locals {
   github_workload_iam_roles = toset([
     "roles/aiplatform.user",
     "roles/artifactregistry.writer",
+    "roles/iam.serviceAccountAdmin",
+    "roles/resourcemanager.projectIamAdmin",
     "roles/run.admin",
     "roles/storage.admin",
   ])
