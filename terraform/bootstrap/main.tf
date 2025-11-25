@@ -79,12 +79,6 @@ resource "google_storage_bucket" "terraform_state" {
   }
 }
 
-resource "google_storage_bucket_iam_member" "github" {
-  bucket = google_storage_bucket.terraform_state.name
-  role   = "roles/storage.objectUser"
-  member = "principalSet://iam.googleapis.com/${google_iam_workload_identity_pool.github.name}/attribute.repository/${local.repository_owner}/${local.repository_name}"
-}
-
 resource "google_artifact_registry_repository" "cloud_run" {
   repository_id          = local.agent_name
   format                 = "DOCKER"
