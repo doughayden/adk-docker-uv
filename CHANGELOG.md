@@ -30,9 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 - `docs/github-docker-setup.md` (replaced by comprehensive cicd-setup.md)
-
-### Deprecated
-- `.github/workflows/docker-build-push.yml` (preserved for reference, superseded by reusable workflow pattern)
+- `.github/workflows/docker-build-push.yml` (superseded by reusable workflow pattern)
 
 ### Fixed
 - Documented IAM bucket access limitation in artifact storage bucket variable (project-level storage roles only work within same GCP project, cross-project access requires additional configuration)
