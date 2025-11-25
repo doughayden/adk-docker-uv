@@ -1,0 +1,159 @@
+name: Terraform Plan and Apply
+
+on:
+  workflow_call:
+    inputs:
+      docker_image:
+        description: 'Docker image URI to deploy'
+        required: true
+        type: string
+      workspace:
+        description: 'Terraform workspace'
+        required: false
+        type: string
+        default: 'sandbox'
+      terraform_action:
+        description: 'Terraform action (plan or apply)'
+        required: false
+        type: string
+        default: 'plan'
+  workflow_dispatch:
+    inputs:
+      docker_image:
+        description: 'Docker image URI to deploy'
+        required: true
+        type: string
+      workspace:
+        description: 'Terraform workspace'
+        required: true
+        type: choice
+        options: [sandbox, staging, production]
+        default: 'sandbox'
+      terraform_action:
+        description: 'Terraform action'
+        required: true
+        type: choice
+        options: [plan, apply]
+        default: 'plan'
+
+permissions:
+  contents: read
+  id-token: write
+  pull-requests: write  # For PR comments
+
+concurrency:
+  group: terraform-deploy-${{ inputs.workspace }}
+  cancel-in-progress: false
+
+jobs:
+  terraform:
+    name: Terraform ${{ inputs.terraform_action }}
+    runs-on: ubuntu-latest
+
+    env:
+      TF_VAR_project: ${{ vars.GCP_PROJECT_ID }}
+      TF_VAR_location: ${{ vars.GCP_LOCATION }}
+      TF_VAR_agent_name: ${{ vars.IMAGE_NAME }}
+      TF_VAR_terraform_state_bucket: ${{ vars.TERRAFORM_STATE_BUCKET }}
+      TF_VAR_docker_image: ${{ inputs.docker_image }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v3
+        with:
+          project_id: ${{ vars.GCP_PROJECT_ID }}
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.14.0"
+          terraform_wrapper: false  # Better output handling
+
+      - name: Terraform Format Check
+        id: fmt
+        working-directory: terraform/main
+        run: terraform fmt -check -recursive
+        continue-on-error: true
+
+      - name: Terraform Init
+        id: init
+        working-directory: terraform/main
+        run: |
+          terraform init \
+            -backend-config="bucket=${{ vars.TERRAFORM_STATE_BUCKET }}"
+
+      - name: Terraform Validate
+        id: validate
+        working-directory: terraform/main
+        run: terraform validate -no-color
+
+      - name: Terraform Plan
+        id: plan
+        working-directory: terraform/main
+        run: |
+          terraform workspace select --or-create ${{ inputs.workspace }}
+          terraform plan -no-color -input=false -out=tfplan
+        continue-on-error: true
+
+      - name: Comment PR with Plan
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v8
+        env:
+          PLAN: "terraform\n${{ steps.plan.outputs.stdout }}"
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const output = `#### Terraform Format and Style 🖌\`${{ steps.fmt.outcome }}\`
+            #### Terraform Initialization ⚙️\`${{ steps.init.outcome }}\`
+            #### Terraform Validation 🤖\`${{ steps.validate.outcome }}\`
+            <details><summary>Validation Output</summary>
+
+            \`\`\`\n
+            ${{ steps.validate.outputs.stdout }}
+            \`\`\`
+
+            </details>
+
+            #### Terraform Plan 📖\`${{ steps.plan.outcome }}\`
+
+            <details><summary>Show Plan</summary>
+
+            \`\`\`\n
+            ${process.env.PLAN}
+            \`\`\`
+
+            </details>
+
+            *Pushed by: @${{ github.actor }}, Action: \`${{ github.event_name }}\`*`;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: output
+            })
+
+      - name: Terraform Plan Status
+        if: steps.plan.outcome == 'failure'
+        run: exit 1
+
+      - name: Terraform Apply
+        id: apply
+        if: inputs.terraform_action == 'apply'
+        working-directory: terraform/main
+        run: |
+          terraform workspace select ${{ inputs.workspace }}
+          terraform apply -auto-approve -input=false tfplan
+
+      - name: Output Service URL
+        if: inputs.terraform_action == 'apply'
+        working-directory: terraform/main
+        run: |
+          echo "🎉 Deployment successful!"
+          echo ""
+          echo "📍 Cloud Run Services:"
+          terraform output -json cloud_run_services | jq -r 'to_entries[] | "  \(.key): \(.value.uri)"'

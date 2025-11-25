@@ -1,7 +1,9 @@
-# Using local state during initial development and will to GCS backend for production
-# terraform {
-#   backend "gcs" {
-#     # bucket = "terraform-state-your-project-id"
-#     prefix = "adk-docker-uv/main"
-#   }
-# }
+# GCS partial backend for Terraform state
+# Bucket name passed via -backend-config during terraform init
+# Example (local): terraform -chdir=terraform/main init -backend-config="bucket=$(terraform -chdir=terraform/bootstrap output -raw terraform_state_bucket)"
+# Example (CI/CD): terraform init -backend-config="bucket=${{ vars.TERRAFORM_STATE_BUCKET }}"
+terraform {
+  backend "gcs" {
+    prefix = "main"
+  }
+}

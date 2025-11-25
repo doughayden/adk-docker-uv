@@ -17,34 +17,28 @@ This is an ADK (Agent Development Kit) application containerized with Docker and
 
 ### Terraform Infrastructure Setup (One-Time)
 
-Initialize GCP and GitHub resources with Terraform:
+Initialize GCP and GitHub resources with Terraform bootstrap:
 
 ```bash
 # Configure .env with required values:
-# - AGENT_NAME
-# - GOOGLE_CLOUD_PROJECT
-# - GOOGLE_CLOUD_LOCATION
-# - GITHUB_REPO_NAME
-# - GITHUB_REPO_OWNER
+# - AGENT_NAME, GOOGLE_CLOUD_PROJECT, GOOGLE_CLOUD_LOCATION
+# - GITHUB_REPO_NAME, GITHUB_REPO_OWNER
 
-# Initialize Terraform and select workspace (run from repo root)
+# Run bootstrap (from repo root, uses local state)
 terraform -chdir=terraform/bootstrap init
-terraform -chdir=terraform/bootstrap workspace select sandbox  # or: workspace new sandbox
-
-# Preview changes
 terraform -chdir=terraform/bootstrap plan
-
-# Apply infrastructure
 terraform -chdir=terraform/bootstrap apply
 
-# Outputs include WIF provider name, registry URI, reasoning engine ID
+# Outputs: WIF provider, registry URI, state bucket name, GitHub Variables created
 ```
 
-The bootstrap module creates:
+Bootstrap creates CI/CD infrastructure:
 - Workload Identity Federation for GitHub Actions
-- Artifact Registry repository with cleanup policies
-- Vertex AI Reasoning Engine for session/memory
-- GitHub Actions Variables (auto-configured)
+- Artifact Registry with cleanup policies
+- **GCS bucket for main module's Terraform state**
+- **GitHub Actions Variables** (all CI/CD config auto-created)
+
+**Note:** Agent Engine created by main module (in CI/CD), not bootstrap.
 
 ### Template Initialization (One-Time)
 
@@ -273,7 +267,7 @@ ARTIFACT_SERVICE_URI=gs://your-artifact-storage-bucket
 # CORS allowed origins (JSON array string)
 # Parsed with validation and fallback to localhost defaults
 # Invalid JSON falls back to default with warning
-ALLOWED_ORIGINS='["https://your-domain.com", "http://127.0.0.1:3000"]'
+ALLOW_ORIGINS='["https://your-domain.com", "http://127.0.0.1:3000"]'
 ```
 
 ## Dependency Management
@@ -302,17 +296,26 @@ uv lock --upgrade-package package-name
 
 ## CI/CD
 
-GitHub Actions workflows in `.github/workflows/`:
+**Three-workflow pattern** in `.github/workflows/`:
+- **ci-cd.yml**: Orchestrator (meta → build → deploy)
+- **docker-build.yml**: Reusable build workflow
+- **terraform-plan-apply.yml**: Reusable Terraform deployment
 - **code-quality.yml**: Runs ruff format, ruff check, mypy
-- **docker-build-push.yml**: Builds and pushes Docker images to registry
 - **required-checks.yml**: Composite checks for branch protection
 
-**Authentication:** Workflows use Workload Identity Federation (no service account keys). Configuration managed by Terraform.
+**Workflow behavior:**
+- **PR:** Build `pr-{number}-{sha}` image, run `terraform plan`, post comment
+- **Main:** Build `{sha}` + `latest` + `{version}` tags, run `terraform apply`, deploy to Cloud Run
+- **Concurrency:** PRs cancel in-progress, main runs sequentially, per-workspace Terraform locking
 
-**GitHub Variables vs Secrets:**
-- **Variables**: Non-sensitive identifiers (GCP_PROJECT_ID, GCP_WORKLOAD_IDENTITY_PROVIDER, ARTIFACT_REGISTRY_URI, IMAGE_NAME, ARTIFACT_REGISTRY_LOCATION)
-- **Secrets**: Actual credentials only (not used with WIF - OIDC tokens provide authentication)
-- Rationale: Identifiers are not secrets; GCP security model relies on IAM policies, not obscurity
+**Authentication:** Workload Identity Federation (no service account keys). WIF configured by Terraform bootstrap.
+
+**GitHub Variables (auto-created by bootstrap):**
+- `GCP_PROJECT_ID`, `GCP_LOCATION`, `IMAGE_NAME`
+- `GCP_WORKLOAD_IDENTITY_PROVIDER`, `ARTIFACT_REGISTRY_URI`, `ARTIFACT_REGISTRY_LOCATION`
+- `TERRAFORM_STATE_BUCKET`
+
+**Note:** These are Variables (not Secrets) - resource identifiers, not credentials. Security via IAM policies.
 
 ## Terraform Infrastructure
 
@@ -320,45 +323,40 @@ The project includes two Terraform modules for infrastructure management:
 
 ### Bootstrap Module (`terraform/bootstrap/`)
 
-**Purpose:** Initial infrastructure setup and GitHub Actions integration.
+**Purpose:** One-time CI/CD infrastructure setup.
 
 **Resources created:**
-- `google_iam_workload_identity_pool`: WIF pool for GitHub Actions
-- `google_iam_workload_identity_pool_provider`: GitHub OIDC provider with repository attribute condition
-- `google_project_iam_member`: Direct principal binding (no service account impersonation)
-- `google_artifact_registry_repository`: Docker repository with cleanup policies
-- `google_vertex_ai_reasoning_engine`: Session and memory persistence service
-- `github_actions_variable`: Auto-configured Variables from Terraform outputs
+- Workload Identity Federation (pool + provider)
+- Artifact Registry with cleanup policies (keep 5 recent, keep buildcache forever)
+- **GCS bucket for main module's Terraform state** (auto-named with random suffix)
+- GitHub Actions Variables (all CI/CD config auto-created)
 
-**Cleanup policies:**
-1. Delete untagged images (intermediate layers)
-2. Delete tagged images older than 30 days
-3. **EXCEPT** keep 5 most recent versions (regardless of age)
-4. **EXCEPT** keep buildcache indefinitely (critical for fast builds)
+**State management:** Local state by default (no backend.tf). Optional GCS backend for team collaboration.
 
-**Configuration:** Reads from `.env` file using `dotenv` provider, supports variable overrides.
+**Configuration:** Reads `.env` using `dotenv` provider (version 1.2.9 pinned). Run once from local terminal.
 
-**IAM roles granted to GitHub Actions:**
-- `roles/aiplatform.user`: Vertex AI access
-- `roles/artifactregistry.writer`: Push Docker images
+**IAM roles to GitHub Actions:**
+- `roles/aiplatform.user`, `roles/artifactregistry.writer`, `roles/storage.objectUser` (state bucket)
 
 ### Main Module (`terraform/main/`)
 
-**Purpose:** Cloud Run deployment configuration.
+**Purpose:** Cloud Run deployment (runs in GitHub Actions CI/CD).
 
 **Resources created:**
-- `google_service_account`: Cloud Run service-attached identity
-- `google_project_iam_member`: Service account permissions
-- `google_cloud_run_v2_service`: Cloud Run deployment with scaling and resource configuration
+- Service account with IAM roles
+- **Vertex AI Reasoning Engine** (session/memory persistence)
+- **GCS bucket for artifacts** (auto-named with random suffix)
+- Cloud Run service with environment variables
+
+**State management:** Remote state in GCS (bucket created by bootstrap). Backend config via `-backend-config` flag.
+
+**Configuration:** All inputs via `TF_VAR_*` environment variables (no dotenv). GitHub Actions maps Variables to TF_VAR_*.
+
+**Docker image recycling:** `docker_image` variable nullable - defaults to previous deployment's image for infrastructure-only updates.
 
 **Key features:**
-- Environment variables sourced from `.env`
-- Request-based billing (cpu_idle = true)
-- Service-level scaling configuration with max instances (100) and configurable min instances
-- Health probes with TCP socket check on port 8000
-- Production safety: `RELOAD_AGENTS` explicitly set to false
-
-**Optional variable:** `docker_image` - Image URI from Artifact Registry (nullable with default for infrastructure-only applies)
+- Agent Engine resource ID passed to Cloud Run via `AGENT_ENGINE` env var
+- Production safety: `RELOAD_AGENTS` hardcoded to false
 
 ### Terraform Naming Conventions
 
@@ -368,27 +366,35 @@ The project includes two Terraform modules for infrastructure management:
 
 ### Running Terraform
 
-**Workspace pattern:** Both modules use the `-chdir` flag (run from repo root) and workspace isolation.
+**Pattern:** Use `-chdir` flag (run from repo root).
 
 ```bash
-# Bootstrap module (one-time setup)
+# Bootstrap (one-time, local execution)
 terraform -chdir=terraform/bootstrap init
-terraform -chdir=terraform/bootstrap workspace select sandbox  # or create: workspace new sandbox
 terraform -chdir=terraform/bootstrap plan
 terraform -chdir=terraform/bootstrap apply
+# Creates GitHub Variables, GCS state bucket, WIF, Artifact Registry
 
-# Main module (deployment updates)
-terraform -chdir=terraform/main init
-terraform -chdir=terraform/main workspace select sandbox
-terraform -chdir=terraform/main plan -var="docker_image=<registry-uri>/<image>:tag"
-terraform -chdir=terraform/main apply -var="docker_image=<registry-uri>/<image>:tag"
+# Main (CI/CD execution - see workflows)
+# Local execution not recommended, but possible:
+export TF_VAR_project="project-id"
+export TF_VAR_location="us-central1"
+export TF_VAR_agent_name="adk-docker-uv"
+export TF_VAR_terraform_state_bucket="terraform-state-..."
+export TF_VAR_docker_image="registry/image:tag"  # nullable
+terraform -chdir=terraform/main init -backend-config="bucket=${TF_VAR_terraform_state_bucket}"
+terraform -chdir=terraform/main workspace select --or-create sandbox
+terraform -chdir=terraform/main plan
+terraform -chdir=terraform/main apply
 ```
 
-**Current workspaces:** Both `bootstrap` and `main` modules use `sandbox` workspace (example only - use any workspace name).
+**Workspaces:**
+- Bootstrap: Uses `default` workspace (workspaces not recommended for local state)
+- Main: Uses workspaces for environment isolation (sandbox/staging/production)
 
-**Docker image recycling pattern:** The `main` module reads its own prior state (`data.terraform_remote_state.main`) to "recycle" the `docker_image` value from the last deployment. This allows infrastructure-only updates (scaling, env vars) without requiring the image URI to be passed explicitly. The `docker_image` variable uses `coalesce()` to fall back to the previous deployment's image if not provided.
-
-**State management:** Backend configs are commented out by default (uses local state). For production, uncomment `backend.tf` and configure GCS bucket for state storage. When switching to GCS backend, also update the `data.terraform_remote_state.main` backend configuration to match.
+**Key differences:**
+- Bootstrap: Local state (no backend.tf), reads `.env`, run locally
+- Main: Remote state in GCS, TF_VAR_* inputs, runs in CI/CD
 
 ## Project-Specific Patterns
 
@@ -435,7 +441,7 @@ from adk_docker_uv.utils import parse_json_list_env
 
 # Parses JSON array with validation and fallback
 origins = parse_json_list_env(
-    env_key="ALLOWED_ORIGINS",
+    env_key="ALLOW_ORIGINS",
     default='["http://127.0.0.1"]',
 )
 ```
@@ -482,4 +488,5 @@ Container runs with `-registry` suffix to distinguish from locally-built images.
 - **docs/development.md**: Development workflows, code quality, testing
 - **docs/docker-compose-workflow.md**: Hot reloading and local development
 - **docs/dockerfile-strategy.md**: Multi-stage build architecture and rationale
-- **docs/github-docker-setup.md**: CI/CD setup for Docker builds
+- **docs/terraform-infrastructure.md**: Terraform bootstrap and main module setup
+- **docs/cicd-setup.md**: CI/CD workflow automation (build and deployment)

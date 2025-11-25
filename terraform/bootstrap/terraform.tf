@@ -3,7 +3,7 @@ terraform {
   required_providers {
     dotenv = {
       source  = "germanbrew/dotenv"
-      version = ">= 1.2.9, < 2.0.0"
+      version = "1.2.9"
     }
     google = {
       source  = "hashicorp/google"
@@ -12,6 +12,10 @@ terraform {
     github = {
       source  = "integrations/github"
       version = ">= 6.6.0, < 7.0.0"
+    }
+    random = {
+      source = "hashicorp/random"
+      version = ">= 3.7.2, < 4.0.0"
     }
   }
 }

@@ -4,15 +4,31 @@ data "dotenv" "adk" {
 
 # Get required Terraform variables from the project .env file unless explicitly passed as a root module input
 locals {
-  agent_name       = coalesce(var.agent_name, data.dotenv.adk.entries.AGENT_NAME)
   project          = coalesce(var.project, data.dotenv.adk.entries.GOOGLE_CLOUD_PROJECT)
   location         = coalesce(var.location, data.dotenv.adk.entries.GOOGLE_CLOUD_LOCATION)
+  agent_name       = coalesce(var.agent_name, data.dotenv.adk.entries.AGENT_NAME)
   repository_name  = coalesce(var.repository_name, data.dotenv.adk.entries.GITHUB_REPO_NAME)
   repository_owner = coalesce(var.repository_owner, data.dotenv.adk.entries.GITHUB_REPO_OWNER)
+
+  services = toset([
+    "aiplatform.googleapis.com",
+    "artifactregistry.googleapis.com",
+    "cloudresourcemanager.googleapis.com",
+    "iam.googleapis.com",
+    "iamcredentials.googleapis.com",
+    "run.googleapis.com",
+    "sts.googleapis.com",
+    "telemetry.googleapis.com",
+  ])
+
+  github_workload_iam_roles = toset([
+    "roles/aiplatform.user",
+    "roles/artifactregistry.writer",
+  ])
 }
 
 resource "google_project_service" "main" {
-  for_each           = toset(var.services)
+  for_each           = toset(local.services)
   service            = each.value
   disable_on_destroy = false
 }
@@ -39,10 +55,32 @@ resource "google_iam_workload_identity_pool_provider" "github" {
 }
 
 resource "google_project_iam_member" "github" {
-  for_each = toset(var.github_workload_iam_roles)
+  for_each = toset(local.github_workload_iam_roles)
   project  = local.project
   role     = each.value
   member   = "principalSet://iam.googleapis.com/${google_iam_workload_identity_pool.github.name}/attribute.repository/${local.repository_owner}/${local.repository_name}"
+}
+
+resource "random_id" "bucket_suffix" {
+  byte_length = 4
+}
+
+resource "google_storage_bucket" "terraform_state" {
+  name     = "terraform-state-${local.agent_name}-${random_id.bucket_suffix.hex}"
+  location = "US"
+
+  uniform_bucket_level_access = true
+  public_access_prevention    = "enforced"
+
+  versioning {
+    enabled = true
+  }
+}
+
+resource "google_storage_bucket_iam_member" "github" {
+  bucket = google_storage_bucket.terraform_state.name
+  role   = "roles/storage.objectUser"
+  member = "principalSet://iam.googleapis.com/${google_iam_workload_identity_pool.github.name}/attribute.repository/${local.repository_owner}/${local.repository_name}"
 }
 
 resource "google_artifact_registry_repository" "cloud_run" {
@@ -92,19 +130,15 @@ resource "google_artifact_registry_repository" "cloud_run" {
   depends_on = [google_project_service.main["artifactregistry.googleapis.com"]]
 }
 
-resource "google_vertex_ai_reasoning_engine" "session_and_memory" {
-  display_name = "Session and Memory Engine: ${local.agent_name}"
-  description  = "Managed Session and Memory Bank Service"
-}
-
-# GitHub
 locals {
   github_variables = {
-    GCP_WORKLOAD_IDENTITY_PROVIDER = google_iam_workload_identity_pool_provider.github.name
-    GCP_PROJECT_ID                 = local.project
     ARTIFACT_REGISTRY_LOCATION     = google_artifact_registry_repository.cloud_run.location
     ARTIFACT_REGISTRY_URI          = google_artifact_registry_repository.cloud_run.registry_uri
+    GCP_LOCATION                   = local.location
+    GCP_PROJECT_ID                 = local.project
+    GCP_WORKLOAD_IDENTITY_PROVIDER = google_iam_workload_identity_pool_provider.github.name
     IMAGE_NAME                     = local.agent_name
+    TERRAFORM_STATE_BUCKET         = google_storage_bucket.terraform_state.name
   }
 }
 

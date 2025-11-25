@@ -1,54 +1,88 @@
-data "dotenv" "adk" {
-  filename = "${path.cwd}/.env"
-}
-
+# Read own previous deployment (for docker_image default)
 data "terraform_remote_state" "main" {
-  # Using local state during initial development and will to GCS backend for production
-  backend   = "local"
+  backend   = "gcs"
   workspace = terraform.workspace
+
+  config = {
+    bucket = var.terraform_state_bucket
+    prefix = "main"
+  }
 }
 
-# Get required Terraform variables from the project .env file unless explicitly passes as a root module input
 locals {
-  agent_name = coalesce(var.agent_name, data.dotenv.adk.entries.AGENT_NAME)
-  project    = coalesce(var.project, data.dotenv.adk.entries.GOOGLE_CLOUD_PROJECT)
-  location   = coalesce(var.location, data.dotenv.adk.entries.GOOGLE_CLOUD_LOCATION)
+  # Run app service account roles
+  app_iam_roles = toset([
+    "roles/aiplatform.user",
+    "roles/logging.logWriter",
+    "roles/cloudtrace.agent",
+    "roles/telemetry.tracesWriter",
+    "roles/serviceusage.serviceUsageConsumer",
+  ])
 
   # Prepare for future regional Cloud Run redundancy
-  locations = toset([local.location])
-
-  # Default model if not specified in .env
-  default_model = "gemini-2.5-flash"
+  locations = toset([var.location])
 
   run_app_env = {
-    GOOGLE_GENAI_USE_VERTEXAI = data.dotenv.adk.entries.GOOGLE_GENAI_USE_VERTEXAI
-    GOOGLE_CLOUD_PROJECT      = local.project
-    GOOGLE_CLOUD_LOCATION     = local.location
-    LOG_LEVEL                 = data.dotenv.adk.entries.LOG_LEVEL
-    SERVE_WEB_INTERFACE       = data.dotenv.adk.entries.SERVE_WEB_INTERFACE
-    AGENT_ENGINE              = data.dotenv.adk.entries.AGENT_ENGINE
-    ROOT_AGENT_MODEL          = coalesce(var.model, try(data.dotenv.adk.entries.ROOT_AGENT_MODEL, local.default_model))
+    ADK_SUPPRESS_EXPERIMENTAL_FEATURE_WARNINGS = var.adk_suppress_experimental_feature_warnings
+    AGENT_ENGINE                               = coalesce(var.agent_engine, google_vertex_ai_reasoning_engine.session_and_memory.id)
+    AGENT_NAME                                 = var.agent_name
+    ALLOW_ORIGINS                              = var.allow_origins
+    ARTIFACT_SERVICE_URI                       = coalesce(var.artifact_service_uri, google_storage_bucket.artifact_service.url)
+    GOOGLE_CLOUD_LOCATION                      = var.location
+    GOOGLE_CLOUD_PROJECT                       = var.project
+    GOOGLE_GENAI_USE_VERTEXAI                  = "TRUE"
+    LOG_LEVEL                                  = var.log_level
+    RELOAD_AGENTS                              = "FALSE"
+    ROOT_AGENT_MODEL                           = var.root_agent_model
+    SERVE_WEB_INTERFACE                        = var.serve_web_interface
   }
 
+  # Recycle docker_image from previous deployment if not provided
   docker_image = coalesce(var.docker_image, try(data.terraform_remote_state.main.outputs.deployed_image, null))
 }
 
 resource "google_service_account" "app" {
-  account_id   = local.agent_name
-  description  = "${local.agent_name} Cloud Run service-attached service account"
-  display_name = "${local.agent_name} Service Account"
+  account_id   = var.agent_name
+  description  = "${var.agent_name} Cloud Run service-attached service account"
+  display_name = "${var.agent_name} Service Account"
 }
 
 resource "google_project_iam_member" "app" {
-  for_each = var.app_iam_roles
-  project  = local.project
+  for_each = local.app_iam_roles
+  project  = var.project
   role     = each.key
   member   = google_service_account.app.member
 }
 
+resource "google_vertex_ai_reasoning_engine" "session_and_memory" {
+  display_name = "Session and Memory: ${var.agent_name}"
+  description  = "Managed Session and Memory Bank Service"
+}
+
+resource "random_id" "bucket_suffix" {
+  byte_length = 4
+}
+
+resource "google_storage_bucket" "artifact_service" {
+  name     = "artifact-service-${var.agent_name}-${random_id.bucket_suffix.hex}"
+  location = "US"
+
+  uniform_bucket_level_access = true
+  public_access_prevention    = "enforced"
+
+  versioning {
+    enabled = true
+  }
+}
+resource "google_storage_bucket_iam_member" "artifact_service" {
+  bucket = google_storage_bucket.artifact_service.name
+  role   = "roles/storage.objectUser"
+  member = google_service_account.app.member
+}
+
 resource "google_cloud_run_v2_service" "app" {
   for_each            = local.locations
-  name                = local.agent_name
+  name                = var.agent_name
   location            = each.key
   deletion_protection = false
   launch_stage        = "GA"
@@ -100,13 +134,6 @@ resource "google_cloud_run_v2_service" "app" {
           value = env.value
         }
       }
-
-      # Ensure production workloads never enable agent hot reload
-      env {
-        name  = "RELOAD_AGENTS"
-        value = "false"
-      }
-
     }
 
     # Explicitly set the concurrency (defaults to 80 for CPU >= 1).

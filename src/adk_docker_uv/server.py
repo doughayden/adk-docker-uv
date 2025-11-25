@@ -18,8 +18,8 @@ AGENT_DIR = os.getenv("AGENT_DIR", str(Path(__file__).resolve().parent.parent))
 AGENT_ENGINE = os.getenv("AGENT_ENGINE")
 AGENT_ENGINE_URI = f"agentengine://{AGENT_ENGINE}" if AGENT_ENGINE else None
 ARTIFACT_SERVICE_URI = os.getenv("ARTIFACT_SERVICE_URI")
-ALLOWED_ORIGINS = parse_json_list_env(
-    env_key="ALLOWED_ORIGINS",
+ALLOW_ORIGINS = parse_json_list_env(
+    env_key="ALLOW_ORIGINS",
     default='["http://127.0.0.1", "http://127.0.0.1:8000"]',
 )
 SERVE_WEB_INTERFACE = os.getenv("SERVE_WEB_INTERFACE", "false").lower() == "true"
@@ -30,7 +30,7 @@ app: FastAPI = get_fast_api_app(
     session_service_uri=AGENT_ENGINE_URI,
     artifact_service_uri=ARTIFACT_SERVICE_URI,
     memory_service_uri=AGENT_ENGINE_URI,
-    allow_origins=ALLOWED_ORIGINS,
+    allow_origins=ALLOW_ORIGINS,
     web=SERVE_WEB_INTERFACE,
     reload_agents=RELOAD_AGENTS,
 )
@@ -65,7 +65,7 @@ def main() -> None:
         RELOAD_AGENTS: Whether to reload agents on file changes (true/false)
         AGENT_ENGINE: Agent Engine instance for session and memory
         ARTIFACT_SERVICE_URI: GCS bucket for artifact storage
-        ALLOWED_ORIGINS: JSON array string of allowed CORS origins
+        ALLOW_ORIGINS: JSON array string of allowed CORS origins
         HOST: Server host (default: 127.0.0.1, set to 0.0.0.0 for containers)
         PORT: Server port (default: 8000)
     """

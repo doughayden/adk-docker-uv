@@ -1,6 +1,6 @@
 provider "google" {
-  project = local.project
-  region  = local.location
+  project = var.project
+  region  = var.location
 }
 
-provider "dotenv" {}
+provider "random" {}

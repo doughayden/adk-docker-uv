@@ -1,4 +1,12 @@
-name: Build
+# DEPRECATED: This workflow has been replaced by the reusable workflow pattern
+# New workflows:
+#   - .github/workflows/docker-build.yml (reusable build workflow)
+#   - .github/workflows/terraform-plan-apply.yml (reusable terraform workflow)
+#   - .github/workflows/ci-cd.yml (orchestrator - calls meta → build → deploy)
+# This file is kept for reference only and will be removed in a future cleanup.
+# Date deprecated: 2025-11-24
+
+name: Build (DEPRECATED)
 
 on:
   push:

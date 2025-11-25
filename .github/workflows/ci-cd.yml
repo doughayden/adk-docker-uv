@@ -1,0 +1,112 @@
+name: CI/CD Pipeline
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'pyproject.toml'
+      - 'uv.lock'
+      - 'Dockerfile'
+      - '.dockerignore'
+      - 'terraform/main/**'
+      - '.github/workflows/ci-cd.yml'
+      - '.github/workflows/docker-build.yml'
+      - '.github/workflows/terraform-plan-apply.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'pyproject.toml'
+      - 'uv.lock'
+      - 'Dockerfile'
+      - '.dockerignore'
+      - 'terraform/main/**'
+      - '.github/workflows/ci-cd.yml'
+      - '.github/workflows/docker-build.yml'
+      - '.github/workflows/terraform-plan-apply.yml'
+  workflow_dispatch:
+    inputs:
+      workspace:
+        description: 'Terraform workspace'
+        required: true
+        type: choice
+        options: [sandbox, staging, production]
+        default: 'sandbox'
+      terraform_action:
+        description: 'Terraform action'
+        required: true
+        type: choice
+        options: [plan, apply]
+        default: 'plan'
+
+permissions:
+  contents: read
+  id-token: write
+  pull-requests: write
+
+concurrency:
+  group: ci-cd-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  meta:
+    name: Extract Metadata
+    runs-on: ubuntu-latest
+    outputs:
+      tags: ${{ steps.meta.outputs.tags }}
+      image_uri: ${{ steps.meta.outputs.image_uri }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Extract metadata
+        id: meta
+        run: |
+          REGISTRY="${{ vars.ARTIFACT_REGISTRY_URI }}"
+          IMAGE_NAME="${{ vars.IMAGE_NAME }}"
+          SHA_SHORT=$(git rev-parse --short HEAD)
+
+          # Determine tags and primary image based on context
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            # PR build - use pr-{number}-{sha} (unique per commit, clearly indicates origin)
+            PR_TAG="pr-${{ github.event.pull_request.number }}-${SHA_SHORT}"
+            IMAGE_URI="${REGISTRY}/${IMAGE_NAME}:${PR_TAG}"
+            TAGS="${IMAGE_URI}"
+          else
+            # Main branch or manual - use SHA for deployment (immutable, traceable)
+            IMAGE_URI="${REGISTRY}/${IMAGE_NAME}:${SHA_SHORT}"
+            # Build all tags: SHA (primary), latest, version (if available)
+            TAGS="${IMAGE_URI},${REGISTRY}/${IMAGE_NAME}:latest"
+            # Add semantic version tag if available
+            if VERSION=$(git describe --tags --exact-match 2>/dev/null); then
+              TAGS="${TAGS},${REGISTRY}/${IMAGE_NAME}:${VERSION}"
+            fi
+          fi
+
+          echo "tags=${TAGS}" >> $GITHUB_OUTPUT
+          echo "image_uri=${IMAGE_URI}" >> $GITHUB_OUTPUT
+
+  build:
+    name: Build Docker Image
+    needs: meta
+    uses: ./.github/workflows/docker-build.yml
+    with:
+      push: true
+      tags: ${{ needs.meta.outputs.tags }}
+      image_uri: ${{ needs.meta.outputs.image_uri }}
+      cache_from: type=registry,ref=${{ vars.ARTIFACT_REGISTRY_URI }}/${{ vars.IMAGE_NAME }}:buildcache
+      cache_to: type=registry,ref=${{ vars.ARTIFACT_REGISTRY_URI }}/${{ vars.IMAGE_NAME }}:buildcache,mode=max
+    secrets: inherit
+
+  deploy:
+    name: Deploy to Cloud Run
+    needs: build
+    uses: ./.github/workflows/terraform-plan-apply.yml
+    with:
+      docker_image: ${{ needs.build.outputs.image_uri }}
+      workspace: ${{ inputs.workspace || 'sandbox' }}
+      terraform_action: ${{ github.event_name == 'pull_request' && 'plan' || inputs.terraform_action || 'apply' }}
+    secrets: inherit

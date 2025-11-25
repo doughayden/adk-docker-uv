@@ -1,8 +1,3 @@
-output "agent_name" {
-  description = "Agent name used to name Terraform resources"
-  value       = local.agent_name
-}
-
 output "project" {
   description = "Google Cloud project ID"
   value       = local.project
@@ -13,24 +8,34 @@ output "location" {
   value       = local.location
 }
 
+output "agent_name" {
+  description = "Agent name to identify cloud resources and logs"
+  value       = local.agent_name
+}
+
 output "repository_full_name" {
   description = "Full GitHub repository name (owner/repo)"
   value       = "${local.repository_owner}/${local.repository_name}"
 }
 
 output "enabled_services" {
-  description = "List of enabled Google Cloud services"
+  description = "Enabled Google Cloud services"
   value       = [for service in google_project_service.main : service.service]
 }
 
 output "workload_identity_provider_name" {
-  description = "Full name of the workload identity provider for GitHub Actions"
+  description = "GitHub Actions workload identity provider resource name"
   value       = google_iam_workload_identity_pool_provider.github.name
 }
 
 output "workload_identity_roles" {
-  description = "List of IAM roles granted to the GitHub Actions workload identity"
+  description = "GitHub Actions workload identity project IAM roles"
   value       = [for role in google_project_iam_member.github : role.role]
+}
+
+output "terraform_state_bucket" {
+  description = "Terraform state GCS bucket name for main module"
+  value       = google_storage_bucket.terraform_state.name
 }
 
 output "artifact_registry_repository_uri" {
@@ -38,12 +43,9 @@ output "artifact_registry_repository_uri" {
   value       = google_artifact_registry_repository.cloud_run.registry_uri
 }
 
-output "reasoning_engine_resource_name" {
-  description = "Vertex AI Reasoning Engine resource name"
-  value       = google_vertex_ai_reasoning_engine.session_and_memory.id
-}
-
 output "github_variables_configured" {
-  description = "List of GitHub variables configured"
-  value       = keys(local.github_variables)
+  description = "GitHub repository variables configured"
+  value = { for index, instance in github_actions_variable.variable :
+    index => instance.value
+  }
 }

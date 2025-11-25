@@ -8,3 +8,5 @@ provider "github" {
 }
 
 provider "dotenv" {}
+
+provider "random" {}

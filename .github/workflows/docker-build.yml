@@ -1,0 +1,111 @@
+name: Docker Build
+
+on:
+  workflow_call:
+    inputs:
+      push:
+        description: 'Push image to registry (false for PR validation only)'
+        required: false
+        type: boolean
+        default: true
+      tags:
+        description: 'Comma-separated list of image tags'
+        required: true
+        type: string
+      image_uri:
+        description: 'Primary image URI (for terraform deployment)'
+        required: true
+        type: string
+      cache_from:
+        description: 'Cache source (e.g., type=registry,ref=...)'
+        required: false
+        type: string
+        default: ''
+      cache_to:
+        description: 'Cache destination (e.g., type=registry,ref=...,mode=max)'
+        required: false
+        type: string
+        default: ''
+    outputs:
+      image_uri:
+        description: 'Built Docker image URI with tag'
+        value: ${{ inputs.image_uri }}
+  workflow_dispatch:
+    inputs:
+      push:
+        description: 'Push image to registry'
+        required: false
+        type: boolean
+        default: true
+      tags:
+        description: 'Comma-separated list of image tags'
+        required: true
+        type: string
+      cache_from:
+        description: 'Cache source (e.g., type=registry,ref=...)'
+        required: false
+        type: string
+        default: ''
+      cache_to:
+        description: 'Cache destination (e.g., type=registry,ref=...,mode=max)'
+        required: false
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  build-push:
+    name: Build and Push to Artifact Registry
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0  # Full history for better git metadata
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Authenticate to Google Cloud
+        id: auth
+        if: ${{ inputs.push }}
+        uses: google-github-actions/auth@v3
+        with:
+          project_id: ${{ vars.GCP_PROJECT_ID }}
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+
+      - name: Configure Docker for Artifact Registry
+        if: ${{ inputs.push }}
+        run: |
+          gcloud auth configure-docker ${{ vars.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev
+
+      - name: Build and push Docker image
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: ${{ inputs.push }}
+          platforms: linux/amd64,linux/arm64
+          tags: ${{ inputs.tags }}
+          cache-from: ${{ inputs.cache_from }}
+          cache-to: ${{ inputs.cache_to }}
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.created=${{ github.event.head_commit.timestamp }}
+
+      - name: Output image details
+        id: push-summary
+        if: ${{ inputs.push }}
+        run: |
+          echo "✅ Docker image built and pushed successfully"
+          echo ""
+          echo "🏷️ Image tags:"
+          echo "${{ inputs.tags }}" | tr ',' '\n' | sed 's/^/  - /'
+          echo ""
+          echo "📦 Primary image URI: ${{ inputs.image_uri }}"

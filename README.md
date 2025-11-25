@@ -1,7 +1,7 @@
 # adk-docker-uv
 
-![Build](https://github.com/doughayden/adk-docker-uv/actions/workflows/docker-build-push.yml/badge.svg)
-![CI](https://github.com/doughayden/adk-docker-uv/actions/workflows/code-quality.yml/badge.svg)
+![CI/CD](https://github.com/doughayden/adk-docker-uv/actions/workflows/ci-cd.yml/badge.svg)
+![Code Quality](https://github.com/doughayden/adk-docker-uv/actions/workflows/code-quality.yml/badge.svg)
 
 ADK on Docker, optimized with uv
 
@@ -18,18 +18,25 @@ This renames the package, updates configuration files, resets the changelog, and
 
 ## Quickstart
 
-**1. Authentication** (one-time setup):
+**0. Authentication** (one-time setup):
 ```bash
 cp .env.example .env
-# Edit .env and choose ONE authentication method:
-#   - GOOGLE_API_KEY for Gemini Developer API
-#   - GOOGLE_CLOUD_PROJECT + GOOGLE_CLOUD_LOCATION for Vertex AI
+# Edit .env Vertex AI Model Authentication with your GCP project and location:
+# GOOGLE_GENAI_USE_VERTEXAI=TRUE
+# GOOGLE_CLOUD_PROJECT=your-project-id
+# GOOGLE_CLOUD_LOCATION=us-central1
 
-# If using Vertex AI, authenticate with gcloud:
+# Authenticate with gcloud:
 gcloud auth application-default login
 ```
 
 See [ADK docs](https://google.github.io/adk-docs/get-started/quickstart/#set-up-the-model) for authentication details.
+
+**1. Configure Agent Name for logs and traces**:
+```bash
+# In .env, set AGENT_NAME to identify your agent in logs and cloud resources
+# AGENT_NAME=your-agent-name
+```
 
 **2. Run the server**:
 
@@ -64,4 +71,5 @@ A production-ready template for deploying Google ADK (Agent Development Kit) age
 - **[Development](docs/development.md)** - Code quality, testing, dependencies, and project structure
 - **[Docker Compose Workflow](docs/docker-compose-workflow.md)** - Local development with hot reloading
 - **[Dockerfile Strategy](docs/dockerfile-strategy.md)** - Multi-stage build architecture and rationale
-- **[GitHub Docker Workflow](docs/github-docker-setup.md)** - CI/CD setup for automated Docker builds
+- **[Terraform Infrastructure](docs/terraform-infrastructure.md)** - Bootstrap and main module setup for GCP
+- **[CI/CD Workflow Guide](docs/cicd-setup.md)** - GitHub Actions automation for build and deployment
