@@ -88,14 +88,17 @@ jobs:
 
           ### Build Context
           - **Event Type:** ${{ github.event_name }}
-          - **Build Context:** EOF
+          - **Build Context:**
+          EOF
           echo "${BUILD_CONTEXT}" >> $GITHUB_STEP_SUMMARY
           cat >> $GITHUB_STEP_SUMMARY << 'EOF'
-          - **Branch/Tag:** EOF
+          - **Branch/Tag:**
+          EOF
           echo "${BRANCH_NAME}" >> $GITHUB_STEP_SUMMARY
           cat >> $GITHUB_STEP_SUMMARY << 'EOF'
           - **Commit SHA:** `${{ github.sha }}`
-          - **Short SHA:** `EOF
+          - **Short SHA:** `
+          EOF
           echo "$(git rev-parse --short HEAD)\`" >> $GITHUB_STEP_SUMMARY
 
           if [ "${{ github.event_name }}" == "pull_request" ]; then
