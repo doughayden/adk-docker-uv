@@ -390,9 +390,9 @@ gcloud artifacts docker images describe "${RUNNING_IMAGE}" \
 ### Implementation Details
 
 **GitHub Actions outputs:**
-- `image_digest`: Raw digest value from Docker build (`sha256:abc123...`)
-- `digest_uri`: Complete URI with digest (`registry/image@sha256:abc123...`)
-- Both available as workflow outputs for subsequent jobs
+- `digest_uri`: Complete digest URI (`registry/image@sha256:abc123...`)
+- Output from `docker-build.yml` workflow passed to `terraform-plan-apply.yml`
+- Constructed from build digest and image registry/name
 
 **Terraform integration:**
 - `docker_image` variable accepts both tag-based and digest-based URIs

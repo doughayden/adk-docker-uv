@@ -30,9 +30,9 @@ on:
       image_uri:
         description: 'Built Docker image URI with tag'
         value: ${{ inputs.image_uri }}
-      image_digest:
+      digest_uri:
         description: 'Docker image digest URI (registry/image@sha256:...)'
-        value: ${{ jobs.build-push.outputs.digest }}
+        value: ${{ jobs.build-push.outputs.digest_uri }}
 
 permissions:
   contents: read
@@ -44,7 +44,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     outputs:
-      digest: ${{ steps.digest.outputs.uri }}
+      digest_uri: ${{ steps.digest.outputs.uri }}
 
     steps:
       - name: Checkout repository
@@ -87,7 +87,7 @@ jobs:
         run: |
           # Validate inputs
           if [ -z "${{ inputs.tags }}" ]; then
-            echo "::error::No tags provided for digest construction"
+            echo "::error::Tags input is empty (cannot construct digest URI)"
             exit 1
           fi
 
