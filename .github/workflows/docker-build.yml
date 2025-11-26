@@ -84,20 +84,46 @@ jobs:
 
       - name: Construct digest URI
         id: digest
-        if: ${{ inputs.push }}
         run: |
+          # Validate inputs
+          if [ -z "${{ inputs.tags }}" ]; then
+            echo "::error::No tags provided for digest construction"
+            exit 1
+          fi
+
+          if [ -z "${{ steps.build.outputs.digest }}" ]; then
+            echo "::warning::No digest available from build step"
+            echo "uri=" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
           # Extract registry and image name from the first tag
           FIRST_TAG=$(echo "${{ inputs.tags }}" | cut -d',' -f1)
+
+          # Validate first tag is not empty
+          if [ -z "${FIRST_TAG}" ]; then
+            echo "::error::Failed to extract first tag from: ${{ inputs.tags }}"
+            exit 1
+          fi
+
           # Remove tag portion to get registry/image base
           IMAGE_BASE=$(echo "${FIRST_TAG}" | sed 's/:.*$//')
+
           # Construct full digest URI
           DIGEST_URI="${IMAGE_BASE}@${{ steps.build.outputs.digest }}"
+
+          # Output with descriptive logging
+          echo "Raw digest from build: ${{ steps.build.outputs.digest }}"
+          echo "Constructed digest URI: ${DIGEST_URI}"
           echo "uri=${DIGEST_URI}" >> $GITHUB_OUTPUT
 
       - name: Output image details
-        if: ${{ inputs.push }}
         run: |
-          echo "✅ Docker image built and pushed successfully"
+          if [ "${{ inputs.push }}" == "true" ]; then
+            echo "✅ Docker image built and pushed successfully"
+          else
+            echo "✅ Docker image built successfully (not pushed)"
+          fi
           echo ""
           echo "🏷️ Image tags:"
           echo "${{ inputs.tags }}" | tr ',' '\n' | sed 's/^/  - /'
