@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.1] - 2025-11-26
+
 ### Changed
 - CI/CD workflows now use image digest (instead of tag) for Cloud Run deployments to ensure every Docker rebuild triggers a new revision deployment, even when tags are reused (e.g., base image security updates, manual rebuilds)
 
@@ -120,7 +122,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Ruff excludes notebooks from linting
 - Notebooks for Agent Engine creation
 
-[Unreleased]: https://github.com/doughayden/adk-docker-uv/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/doughayden/adk-docker-uv/compare/v0.4.1...HEAD
+[0.4.1]: https://github.com/doughayden/adk-docker-uv/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/doughayden/adk-docker-uv/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/doughayden/adk-docker-uv/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/doughayden/adk-docker-uv/compare/v0.1.0...v0.2.0
