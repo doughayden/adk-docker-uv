@@ -94,4 +94,3 @@ gcloud auth configure-docker ${LOCATION}-docker.pkg.dev
 ## Related Docs
 
 - [CI/CD Workflow Guide](./cicd-setup.md)
-- [CLAUDE.md](../CLAUDE.md) - "Multi-Platform Builds and Digest Resolution"

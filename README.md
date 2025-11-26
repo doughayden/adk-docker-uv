@@ -73,3 +73,4 @@ A production-ready template for deploying Google ADK (Agent Development Kit) age
 - **[Docker Compose Workflow](docs/docker-compose-workflow.md)** - Local development with hot reloading
 - **[Dockerfile Strategy](docs/dockerfile-strategy.md)** - Multi-stage build architecture and rationale
 - **[Terraform Infrastructure](docs/terraform-infrastructure.md)** - Bootstrap and main module setup for GCP
+- **[Validating Multi-Platform Builds](docs/validating-multiplatform-builds.md)** - Digest verification for multi-platform Docker images in Cloud Run

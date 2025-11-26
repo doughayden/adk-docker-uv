@@ -293,6 +293,7 @@ terraform -chdir=terraform/bootstrap init
 terraform -chdir=terraform/bootstrap plan
 terraform -chdir=terraform/bootstrap apply
 # Creates GitHub Variables, GCS state bucket, WIF, Artifact Registry
+```
 
 **Naming conventions:** Use `project` (not `project_id`), descriptive locals (`local.agent_name`), `agent_name` base for resource IDs.
 
