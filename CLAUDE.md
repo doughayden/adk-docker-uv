@@ -447,13 +447,13 @@ echo "Platform digest: $PLATFORM_DIGEST"
 TAG_DIGEST=$(gcloud artifacts docker images describe \
   "us-central1-docker.pkg.dev/.../adk-docker-uv:v0.4.1" \
   --format="value(image_summary.digest)")
-[[ "$TAG_DIGEST" == "$MANIFEST_DIGEST" ]] && echo "✓ Tag v0.4.1 points to manifest"
+[[ "$TAG_DIGEST" == "sha256:$MANIFEST_DIGEST" ]] && echo "✓ Tag v0.4.1 points to manifest"
 
 # 4. Verify manifest contains platform digest
 CONTAINS=$(docker manifest inspect \
-  "us-central1-docker.pkg.dev/.../adk-docker-uv@$MANIFEST_DIGEST" \
+  "us-central1-docker.pkg.dev/.../adk-docker-uv@sha256:$MANIFEST_DIGEST" \
   | jq -r '.manifests[] | select(.platform.architecture=="amd64") | .digest')
-[[ "$CONTAINS" == "$PLATFORM_DIGEST" ]] && echo "✓ Manifest contains platform image"
+[[ "$CONTAINS" == "sha256:$PLATFORM_DIGEST" ]] && echo "✓ Manifest contains platform image"
 ```
 
 **Note:** Artifact Registry doesn't return tags when querying by digest. Query by tag (`:v0.4.1`) to verify which digest it points to.

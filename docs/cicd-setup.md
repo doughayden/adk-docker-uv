@@ -426,20 +426,20 @@ TAG_DIGEST=$(gcloud artifacts docker images describe \
   "us-central1-docker.pkg.dev/.../adk-docker-uv:v0.4.1" \
   --format="value(image_summary.digest)")
 echo "Tag v0.4.1 points to: $TAG_DIGEST"
-[[ "$TAG_DIGEST" == "$MANIFEST_DIGEST" ]] && echo "✓ Match!"
+[[ "$TAG_DIGEST" == "sha256:$MANIFEST_DIGEST" ]] && echo "✓ Match!"
 
 # Verify manifest contains platform image
 CONTAINS=$(docker manifest inspect \
-  "us-central1-docker.pkg.dev/.../adk-docker-uv@$MANIFEST_DIGEST" \
+  "us-central1-docker.pkg.dev/.../adk-docker-uv@sha256:$MANIFEST_DIGEST" \
   | jq -r '.manifests[] | select(.platform.architecture=="amd64") | .digest')
 echo "Manifest contains amd64: $CONTAINS"
-[[ "$CONTAINS" == "$PLATFORM_DIGEST" ]] && echo "✓ Match!"
+[[ "$CONTAINS" == "sha256:$PLATFORM_DIGEST" ]] && echo "✓ Match!"
 ```
 
 **Expected output:**
 ```
-Manifest list: sha256:29a4df4fd28b...
-Platform image: sha256:28d1b714d69d...
+Manifest list: 29a4df4fd28b...
+Platform image: 28d1b714d69d...
 Tag v0.4.1 points to: sha256:29a4df4fd28b...
 ✓ Match!
 Manifest contains amd64: sha256:28d1b714d69d...
