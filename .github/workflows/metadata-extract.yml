@@ -55,15 +55,16 @@ jobs:
 
       - name: Generate Job Summary
         run: |
-          cat >> $GITHUB_STEP_SUMMARY << 'EOF'
+          SHA_SHORT=$(git rev-parse --short HEAD)
+
+          cat >> $GITHUB_STEP_SUMMARY << EOF
           ## 📦 Build Metadata
 
-          | Property | Value |
-          |----------|-------|
-          | **Event** | `${{ github.event_name }}` |
-          | **Branch** | `${{ github.head_ref || github.ref_name }}` |
-          | **Commit** | `${{ github.sha }}` |
-          | **Image URI** | `${{ steps.extract.outputs.image_uri }}` |
+          | Event | Branch | Commit |
+          |-------|--------|--------|
+          | \`${{ github.event_name }}\` | \`${{ github.head_ref || github.ref_name }}\` | \`${SHA_SHORT}\` |
+
+          **Deployment Image:** \`${{ steps.extract.outputs.image_uri }}\`
 
           **Tags:**
           EOF
