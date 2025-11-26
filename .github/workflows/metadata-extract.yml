@@ -64,9 +64,12 @@ jobs:
           |-------|--------|--------|
           | \`${{ github.event_name }}\` | \`${{ github.head_ref || github.ref_name }}\` | \`${SHA_SHORT}\` |
 
-          **Deployment Image:** \`${{ steps.extract.outputs.image_uri }}\`
+          ### 🎯 Primary Deployment Image
+          \`\`\`
+          ${{ steps.extract.outputs.image_uri }}
+          \`\`\`
 
-          **Tags:**
+          ### 🏷️ All Image Tags
           EOF
 
           # Format tags as bulleted list
