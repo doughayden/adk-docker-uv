@@ -6,7 +6,7 @@ This document covers development workflows, code quality standards, and testing.
 
 - Python 3.13+
 - `uv` package manager
-- Google Cloud SDK (optional, for Vertex AI authentication)
+- Google Cloud SDK (gcloud CLI) for Vertex AI authentication
 
 ## Template Initialization
 
@@ -42,7 +42,8 @@ The script creates `init_template_results.md` as an audit log of changes. Dry-ru
 ```bash
 # Configure authentication first
 cp .env.example .env
-# Edit .env to set GOOGLE_API_KEY or GOOGLE_CLOUD_PROJECT + GOOGLE_CLOUD_LOCATION
+# Edit .env to set GOOGLE_CLOUD_PROJECT and GOOGLE_CLOUD_LOCATION
+# Authenticate: gcloud auth application-default login
 
 # Run server (default)
 uv run server
@@ -124,10 +125,7 @@ def example_tool(tool_context: ToolContext) -> dict[str, Any]:
 
 ### Code Style
 
-**Ruff configuration**:
-- Auto-fix enabled with comprehensive linting rules
-- Enforces: pycodestyle, pyflakes, isort, flake8-bugbear, pyupgrade, pep8-naming, flake8-bandit, flake8-simplify, flake8-use-pathlib
-- Line length: 88 characters (Black-compatible)
+**Ruff configuration:** Auto-fix enabled, 88-char line length (see `pyproject.toml` for complete rule list)
 
 **Pathlib usage**:
 - Use `Path` objects for all file operations (enforced by ruff PTH rules)
@@ -187,25 +185,11 @@ tests/
 
 ## Dependencies
 
-### Core Dependencies
+**Runtime:** Google ADK, pydantic, python-dotenv
 
-- **Google ADK**: Agent framework for LLM-powered applications
-- **pydantic**: Data validation and runtime type checking
-- **python-dotenv**: Environment variable management
+**Development:** pytest, ruff, mypy (see `pyproject.toml` for complete list)
 
-### Development Dependencies
-
-- **pytest**: Test framework
-- **pytest-cov**: Coverage reporting
-- **pytest-asyncio**: Async test support
-- **ruff**: Fast Python linter and formatter
-- **mypy**: Static type checker
-
-### Dependency Groups
-
-The project uses PEP 735 dependency groups (via `uv`):
-- `dev` group: Development tools (pytest, ruff, mypy, etc.)
-- No `--dev` flag needed - dev dependencies are installed by default with `uv run`
+**PEP 735 dependency groups:** Dev tools in `dev` group, installed by default with `uv run`
 
 ## Project Structure
 
@@ -233,12 +217,7 @@ adk-docker-uv/
 
 ## CI/CD
 
-The project uses GitHub Actions for continuous integration:
-- Code quality checks (ruff format, ruff check, mypy)
-- Test suite with coverage reporting
-- Runs on every push and pull request
-
-See `.github/workflows/` for workflow definitions.
+GitHub Actions runs code quality checks and tests on every push/PR. See [CI/CD Workflow Guide](./cicd-setup.md) for complete automation details.
 
 ## Dependency Management
 
@@ -264,29 +243,15 @@ uv lock --upgrade-package package-name
 
 ## Logging
 
-The project uses structured logging with rotating file handler:
+Structured logging with rotating file handler (`.log/app.log`, 1MB max, 5 backups).
 
-**Configuration**:
-- Default level: INFO
-- File: `.log/app.log`
-- Max size: 1 MB
-- Backup count: 5 files
-- Format: `[{asctime}] [{process}] [{levelname:>8}] [{name}.{funcName}:{lineno:>5}] {message}`
-
-**Custom logger**:
-```python
-import logging
-from adk_docker_uv.utils import setup_file_logging
-
-# Setup logging with custom level
-setup_file_logging(log_level="DEBUG")
-
-# Get logger
-logger = logging.getLogger(__name__)
-logger.debug("Debug message")
-```
-
-**Environment control**:
+**Control log level:**
 ```bash
 LOG_LEVEL=DEBUG uv run server
+```
+
+**Custom logger:**
+```python
+from adk_docker_uv.utils import setup_file_logging
+setup_file_logging(log_level="DEBUG")
 ```
