@@ -118,9 +118,10 @@ resource "google_cloud_run_v2_service" "app" {
       startup_probe {
         failure_threshold     = 5
         initial_delay_seconds = 20
-        timeout_seconds       = 10
+        timeout_seconds       = 15
         period_seconds        = 20
-        tcp_socket {
+        http_get {
+          path = "/health"
           port = 8000
         }
       }
