@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- CI/CD workflows now use image digest (instead of tag) for Cloud Run deployments to ensure every Docker rebuild triggers a new revision deployment, even when tags are reused (e.g., base image security updates, manual rebuilds)
+
+### Added
+- "Image Digest Deployment" section in CLAUDE.md explaining digest-based deployment rationale and workflow
+- "Tracing Deployed Image to Git Commit" troubleshooting section in docs/cicd-setup.md with gcloud commands to lookup digest → tags → commit SHA
+
 ## [0.4.0] - 2025-11-25
 
 ### Added
