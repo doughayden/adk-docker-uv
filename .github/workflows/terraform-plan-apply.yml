@@ -153,9 +153,6 @@ jobs:
             \`\`\`
 
             </details>
-
-            ---
-            *Pushed by @${{ github.actor }} · ${{ github.event_name }}*
             `.trim();
 
             // Always write to job summary
