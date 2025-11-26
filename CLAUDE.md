@@ -308,7 +308,15 @@ uv lock --upgrade-package package-name
 **Workflow behavior:**
 - **PR:** Build `pr-{number}-{sha}` image, run `terraform plan`, post comment
 - **Main:** Build `{sha}` + `latest` + `{version}` tags, run `terraform apply`, deploy to Cloud Run
+- **Tag push (`v*`):** Triggers CI/CD to build version-tagged Docker image (e.g., `v0.4.0`)
 - **Concurrency:** PRs cancel in-progress, main runs sequentially, per-workspace Terraform locking
+
+**Version tag trigger rationale:**
+- Tag creation happens after release PR is reviewed and merged (code already vetted)
+- Automatic workflow trigger ensures version-tagged images are built consistently
+- Tag is immutable pointer to already-reviewed code on main
+- Standard industry practice for automated release workflows
+- Security: Tags can only be pushed by authorized users, optional tag protection rules available
 
 **Authentication:** Workload Identity Federation (no service account keys). WIF configured by Terraform bootstrap.
 
