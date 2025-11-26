@@ -13,6 +13,7 @@ on:
       - '.github/workflows/ci-cd.yml'
       - '.github/workflows/docker-build.yml'
       - '.github/workflows/terraform-plan-apply.yml'
+      - '.github/workflows/metadata-extract.yml'
   push:
     branches: [main]
     paths:
@@ -25,6 +26,7 @@ on:
       - '.github/workflows/ci-cd.yml'
       - '.github/workflows/docker-build.yml'
       - '.github/workflows/terraform-plan-apply.yml'
+      - '.github/workflows/metadata-extract.yml'
     tags:
       - 'v*'
   workflow_dispatch:
@@ -54,121 +56,8 @@ concurrency:
 jobs:
   meta:
     name: Extract Metadata
-    runs-on: ubuntu-latest
-    outputs:
-      tags: ${{ steps.extract.outputs.tags }}
-      image_uri: ${{ steps.extract.outputs.image_uri }}
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
-
-      - name: Extract metadata
-        id: extract
-        run: |
-          REGISTRY="${{ vars.ARTIFACT_REGISTRY_URI }}"
-          IMAGE_NAME="${{ vars.IMAGE_NAME }}"
-          SHA_SHORT=$(git rev-parse --short HEAD)
-
-          # Determine tags and primary image based on context
-          if [ "${{ github.event_name }}" == "pull_request" ]; then
-            # PR build - use pr-{number}-{sha} (unique per commit, clearly indicates origin)
-            PR_TAG="pr-${{ github.event.pull_request.number }}-${SHA_SHORT}"
-            IMAGE_URI="${REGISTRY}/${IMAGE_NAME}:${PR_TAG}"
-            TAGS="${IMAGE_URI}"
-          else
-            # Main branch or manual - use SHA for deployment (immutable, traceable)
-            IMAGE_URI="${REGISTRY}/${IMAGE_NAME}:${SHA_SHORT}"
-            # Build all tags: SHA (primary), latest, version (if available)
-            TAGS="${IMAGE_URI},${REGISTRY}/${IMAGE_NAME}:latest"
-            # Add semantic version tag if available
-            if VERSION=$(git describe --tags --exact-match 2>/dev/null); then
-              TAGS="${TAGS},${REGISTRY}/${IMAGE_NAME}:${VERSION}"
-            fi
-          fi
-
-          echo "tags=${TAGS}" >> $GITHUB_OUTPUT
-          echo "image_uri=${IMAGE_URI}" >> $GITHUB_OUTPUT
-
-      - name: Generate Job Summary
-        run: |
-          # Set GITHUB_REF as shell variable for proper substitution
-          GITHUB_REF="${{ github.ref }}"
-
-          # Determine build context
-          if [ "${{ github.event_name }}" == "pull_request" ]; then
-            BUILD_CONTEXT="Pull Request #${{ github.event.pull_request.number }}"
-          elif [ "${{ github.event_name }}" == "push" ]; then
-            if [[ "${{ github.ref }}" == refs/tags/* ]]; then
-              BUILD_CONTEXT="Tag Push (${GITHUB_REF#refs/tags/})"
-            else
-              BUILD_CONTEXT="Main Branch Push"
-            fi
-          else
-            BUILD_CONTEXT="Manual Dispatch"
-          fi
-
-          # Extract branch name
-          if [ "${{ github.event_name }}" == "pull_request" ]; then
-            BRANCH_NAME="${{ github.head_ref }}"
-          elif [[ "${{ github.ref }}" == refs/heads/* ]]; then
-            BRANCH_NAME="${GITHUB_REF#refs/heads/}"
-          elif [[ "${{ github.ref }}" == refs/tags/* ]]; then
-            BRANCH_NAME="tag: ${GITHUB_REF#refs/tags/}"
-          else
-            BRANCH_NAME="unknown"
-          fi
-
-          # Generate summary
-          cat >> $GITHUB_STEP_SUMMARY << 'EOF'
-          ## 📦 Build Metadata Extraction
-
-          ### Build Context
-          - **Event Type:** ${{ github.event_name }}
-          - **Build Context:** EOF
-          echo "${BUILD_CONTEXT}" >> $GITHUB_STEP_SUMMARY
-          cat >> $GITHUB_STEP_SUMMARY << 'EOF'
-          - **Branch/Tag:** EOF
-          echo "${BRANCH_NAME}" >> $GITHUB_STEP_SUMMARY
-          cat >> $GITHUB_STEP_SUMMARY << 'EOF'
-          - **Commit SHA:** `${{ github.sha }}`
-          - **Short SHA:** `EOF
-          echo "$(git rev-parse --short HEAD)\`" >> $GITHUB_STEP_SUMMARY
-
-          if [ "${{ github.event_name }}" == "pull_request" ]; then
-            cat >> $GITHUB_STEP_SUMMARY << 'EOF'
-          - **PR Number:** #${{ github.event.pull_request.number }}
-          - **PR Author:** @${{ github.event.pull_request.user.login }}
-          EOF
-          fi
-
-          cat >> $GITHUB_STEP_SUMMARY << 'EOF'
-
-          ### 🎯 Primary Deployment Image
-          ```
-          ${{ steps.extract.outputs.image_uri }}
-          ```
-
-          ### 🏷️ All Image Tags
-          EOF
-
-          # Format tags as a bulleted list (with defensive check for empty tags)
-          if [ -n "${{ steps.extract.outputs.tags }}" ]; then
-            echo "${{ steps.extract.outputs.tags }}" | tr ',' '\n' | while read -r tag; do
-              if [ -n "${tag}" ]; then
-                echo "- \`${tag}\`" >> $GITHUB_STEP_SUMMARY
-              fi
-            done
-          else
-            echo "- *No tags configured*" >> $GITHUB_STEP_SUMMARY
-          fi
-
-          cat >> $GITHUB_STEP_SUMMARY << 'EOF'
-
-          ---
-          *Generated at ${{ github.event.head_commit.timestamp || github.event.repository.updated_at }} by @${{ github.actor }}*
-          EOF
+    uses: ./.github/workflows/metadata-extract.yml
+    secrets: inherit
 
   build:
     name: Build Docker Image
