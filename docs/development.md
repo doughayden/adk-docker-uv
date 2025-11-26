@@ -48,7 +48,7 @@ cp .env.example .env
 # Run server (default)
 uv run server
 
-# Or enable web UI by setting SERVE_WEB_INTERFACE=true in .env
+# Enable web UI by setting SERVE_WEB_INTERFACE=true in .env
 ```
 
 **Debug mode** (detailed logging):
