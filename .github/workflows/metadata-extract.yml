@@ -30,16 +30,16 @@ jobs:
           IMAGE_NAME="${{ vars.IMAGE_NAME }}"
           SHA_SHORT=$(git rev-parse --short HEAD)
 
-          # Determine tags and primary image based on context
+          # Determine tags based on context (deployment uses digest, not tags)
           if [ "${{ github.event_name }}" == "pull_request" ]; then
             # PR build - use pr-{number}-{sha} (unique per commit, clearly indicates origin)
             PR_TAG="pr-${{ github.event.pull_request.number }}-${SHA_SHORT}"
             IMAGE_URI="${REGISTRY}/${IMAGE_NAME}:${PR_TAG}"
             TAGS="${IMAGE_URI}"
           else
-            # Main branch or manual - use SHA for deployment (immutable, traceable)
+            # Main branch or manual - build multiple tags (SHA, latest, version if available)
             IMAGE_URI="${REGISTRY}/${IMAGE_NAME}:${SHA_SHORT}"
-            # Build all tags: SHA (primary), latest, version (if available)
+            # Build all tags: SHA (for traceability), latest, version (if available)
             TAGS="${IMAGE_URI},${REGISTRY}/${IMAGE_NAME}:latest"
             # Add semantic version tag if available
             if VERSION=$(git describe --tags --exact-match 2>/dev/null); then
