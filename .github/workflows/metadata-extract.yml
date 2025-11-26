@@ -78,3 +78,7 @@ jobs:
               echo "- \`${tag}\`" >> $GITHUB_STEP_SUMMARY
             fi
           done
+
+          # Add separator
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "---" >> $GITHUB_STEP_SUMMARY

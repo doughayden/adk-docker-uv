@@ -153,6 +153,8 @@ jobs:
             \`\`\`
 
             </details>
+
+            ---
             `.trim();
 
             // Always write to job summary
