@@ -427,36 +427,7 @@ gcloud run revisions describe adk-docker-uv-00009-xyz --format='value(spec.conta
 
 **This is correct!** The manifest list ensures Cloud Run gets the right platform. Different digests in service vs revision specs are expected and normal.
 
-**Verification:**
-```bash
-# 1. Get manifest list digest (what Terraform deployed)
-MANIFEST_DIGEST=$(gcloud run services describe adk-docker-uv \
-  --region us-central1 \
-  --format='value(spec.template.spec.containers[0].image)' \
-  | sed 's/.*@//')
-echo "Manifest digest: $MANIFEST_DIGEST"
-
-# 2. Get platform-specific digest (what's actually running)
-PLATFORM_DIGEST=$(gcloud run revisions describe adk-docker-uv-00009-xyz \
-  --region us-central1 \
-  --format='value(spec.containers[0].image)' \
-  | sed 's/.*@//')
-echo "Platform digest: $PLATFORM_DIGEST"
-
-# 3. Verify tag points to manifest list digest
-TAG_DIGEST=$(gcloud artifacts docker images describe \
-  "us-central1-docker.pkg.dev/.../adk-docker-uv:v0.4.1" \
-  --format="value(image_summary.digest)")
-[[ "$TAG_DIGEST" == "sha256:$MANIFEST_DIGEST" ]] && echo "✓ Tag v0.4.1 points to manifest"
-
-# 4. Verify manifest contains platform digest
-CONTAINS=$(docker manifest inspect \
-  "us-central1-docker.pkg.dev/.../adk-docker-uv@sha256:$MANIFEST_DIGEST" \
-  | jq -r '.manifests[] | select(.platform.architecture=="amd64") | .digest')
-[[ "$CONTAINS" == "sha256:$PLATFORM_DIGEST" ]] && echo "✓ Manifest contains platform image"
-```
-
-**Note:** Artifact Registry doesn't return tags when querying by digest. Query by tag (`:v0.4.1`) to verify which digest it points to.
+**For complete verification workflows and troubleshooting**, see the dedicated guide: [Validating Multi-Platform Docker Builds](docs/validating-multiplatform-builds.md)
 
 ## Terraform Infrastructure
 
