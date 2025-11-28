@@ -88,7 +88,7 @@ class TestServerEnv:
         assert env.allow_origins == '["http://localhost:3000"]'
         assert env.host == "0.0.0.0"  # noqa: S104
         assert env.port == 9000
-        assert env.otel_capture_content == "false"
+        assert env.otel_capture_content is False
 
     def test_agent_engine_uri_property(self, valid_server_env: dict[str, str]) -> None:
         """Test that agent_engine_uri property is computed correctly."""

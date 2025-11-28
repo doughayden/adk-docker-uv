@@ -154,7 +154,7 @@ class ServerEnv(BaseModel):
         description="Server port",
     )
 
-    otel_capture_content: str = Field(
+    otel_capture_content: bool = Field(
         ...,
         alias="OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT",
         description="OpenTelemetry message content capture setting",

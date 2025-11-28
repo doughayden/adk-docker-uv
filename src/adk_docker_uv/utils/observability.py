@@ -107,7 +107,7 @@ def setup_opentelemetry(
     else:
         configure_otel_resource(agent_name, project_id)
 
-    # Validate log_level with fallback
+    # Defensive strategy for portability to projects without Pydantic pre-validation
     if log_level not in {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}:
         print(f"⚠️ Received log_level: '{log_level}'. Defaulting to 'INFO'")
         log_level = "INFO"
