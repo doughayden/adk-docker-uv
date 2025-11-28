@@ -156,18 +156,21 @@ The server (`src/adk_docker_uv/server.py`) provides:
 
 See `docs/dockerfile-strategy.md` for detailed rationale.
 
-### Logging
+### Observability
 
-**File logging** (local development and Docker):
-- Location: `.log/app.log`
-- Rotation: 1 MB max size, 5 backup files
-- Format: `[{asctime}] [{process}] [{levelname:>8}] [{name}.{funcName}:{lineno:>5}] {message}`
-- Control: `LOG_LEVEL` env var (DEBUG, INFO, WARNING, ERROR)
+**OpenTelemetry setup** (all environments):
+- Traces exported to Google Cloud Trace via OTLP
+- Logs exported to Google Cloud Logging with automatic trace correlation
+- Service identification (`service.name`) via `AGENT_NAME` environment variable
+- Instance-level tracking with `service.instance.id=worker-{PID}-{UUID}` (UUID prevents collisions)
+- Environment grouping (`service.namespace`) via `TELEMETRY_NAMESPACE` env var (defaults to `"local"`, set to  terraform workspace in deployments))
+- Version tracking via `service.version` (auto-set to Cloud Run revision ID from `K_REVISION` environment variable)
+- Control: `LOG_LEVEL` env var (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+- Content capture: `OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT` (TRUE/FALSE)
 
-**Callback logging:**
-- `LoggingCallbacks` class in `callbacks.py` provides comprehensive lifecycle logging
-- Logs agent start/end, LLM calls, tool invocations with full context
-- Supports logger injection for testing
+**Callback logging:** `LoggingCallbacks` (in `callbacks.py`) logs agent lifecycle events with trace context correlation.
+
+See `docs/observability.md` for complete configuration, resource attributes, and usage details.
 
 ## Code Quality Standards
 
@@ -203,15 +206,23 @@ See `docs/dockerfile-strategy.md` for detailed rationale.
 
 ## Environment Variables
 
-**Required (GCP auth only):**
+**Required:**
 ```bash
+# Google Cloud Vertex AI Model Authentication
 GOOGLE_GENAI_USE_VERTEXAI=TRUE
 GOOGLE_CLOUD_PROJECT=your-project-id
 GOOGLE_CLOUD_LOCATION=us-central1
+
+# Agent identification and observability
+AGENT_NAME=your-agent-name
+
+# OpenTelemetry message content capture (true/false)
+OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT=TRUE
+
 # Auth: gcloud auth application-default login
 ```
 
-**Key optional vars:** `SERVE_WEB_INTERFACE` (web UI), `LOG_LEVEL` (DEBUG/INFO/WARNING/ERROR), `RELOAD_AGENTS` (dev hot reload), `ROOT_AGENT_MODEL` (default: gemini-2.5-flash), `AGENT_ENGINE` (session persistence, URI prefix auto-added), `ARTIFACT_SERVICE_URI` (GCS bucket), `ALLOW_ORIGINS` (JSON array, uses `parse_json_list_env()` with validation/fallback).
+**Key optional vars:** `SERVE_WEB_INTERFACE` (web UI), `LOG_LEVEL` (DEBUG/INFO/WARNING/ERROR/CRITICAL, default: INFO), `TELEMETRY_NAMESPACE` (trace grouping, default: "local", auto-set to workspace in deployments), `RELOAD_AGENTS` (dev hot reload), `ROOT_AGENT_MODEL` (default: gemini-2.5-flash), `AGENT_ENGINE` (session persistence, URI prefix auto-added), `ARTIFACT_SERVICE_URI` (GCS bucket), `ALLOW_ORIGINS` (CORS config JSON array).
 
 See `.env.example` for complete list.
 
@@ -337,9 +348,13 @@ terraform -chdir=terraform/bootstrap apply
 # Creates GitHub Variables, GCS state bucket, WIF, Artifact Registry
 ```
 
-**Naming conventions:** Use `project` (not `project_id`), descriptive locals (`local.agent_name`), `agent_name` base for resource IDs.
+**Resource naming convention:** All GCP resources use `local.resource_name = "${var.agent_name}-${terraform.workspace}"` for environment-specific naming. This ensures unique resource names per deployment environment (e.g., `my-agent-dev`, `my-agent-prod`).
+
+**Billing labels:** Resources tagged with `application = var.agent_name` and `environment = terraform.workspace` for cost tracking and organization.
 
 **Workspaces:** Bootstrap uses `default`, main uses workspaces for environments (default/dev/stage/prod).
+
+**Automatic observability config:** Cloud Run services automatically receive `TELEMETRY_NAMESPACE = terraform.workspace` env var for trace grouping by environment.
 
 **Variable overrides (CI/CD):** GitHub Actions Variables → `TF_VAR_*` env vars. `coalesce()` skips empty strings and nulls, applies defaults. Override: `log_level`, `serve_web_interface`, `allow_origins` (JSON array), `root_agent_model`, `artifact_service_uri`, `agent_engine`.
 
@@ -413,7 +428,6 @@ origins = parse_json_list_env(
 **File locations in container:**
 - Source code: `/app/src` (synced from `./src`)
 - Data directory: `/app/data` (mounted from `./data`, read-only)
-- Logs: `/app/.log` (mounted from `./.log`, read-write)
 - GCP credentials: `/gcloud/application_default_credentials.json` (mounted from `~/.config/gcloud/`)
 
 **Note for Windows:** Update volume path in `docker-compose.yml` for GCP credentials (see comments in file).

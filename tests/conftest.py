@@ -1,6 +1,9 @@
 """Shared pytest fixtures for all tests."""
 
+from collections.abc import Callable, Generator
+from contextlib import AbstractContextManager
 from typing import Any
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -359,3 +362,141 @@ def mock_readonly_context() -> MockReadonlyContext:
         invocation_id="readonly-inv-123",
         state={"user_tier": "premium", "language": "en"},
     )
+
+
+# Config testing fixtures
+@pytest.fixture
+def valid_server_env() -> dict[str, str]:
+    """Valid environment variables for ServerEnv model.
+
+    Returns:
+        Dictionary with minimal required fields for ServerEnv.
+    """
+    return {
+        "GOOGLE_CLOUD_PROJECT": "test-project",
+        "AGENT_NAME": "test-agent",
+        "OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT": "true",
+    }
+
+
+class MockEnviron(dict[str, str]):
+    """Mock os.environ-like object for testing.
+
+    Mimics os._Environ behavior while being a dict subclass.
+    """
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        """Initialize mock environ."""
+        super().__init__(*args, **kwargs)
+
+
+@pytest.fixture
+def mock_environ() -> type[MockEnviron]:
+    """Mock os.environ class for testing.
+
+    Returns:
+        MockEnviron class that behaves like os._Environ.
+    """
+    return MockEnviron
+
+
+@pytest.fixture(autouse=True)
+def clean_environment(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Clean environment variables before each test.
+
+    Removes any existing environment variables that might interfere
+    with tests to ensure isolation.
+
+    Args:
+        monkeypatch: Pytest monkeypatch fixture.
+    """
+    env_vars_to_clean = [
+        "GOOGLE_CLOUD_PROJECT",
+        "GOOGLE_CLOUD_LOCATION",
+        "AGENT_NAME",
+        "LOG_LEVEL",
+        "SERVE_WEB_INTERFACE",
+        "RELOAD_AGENTS",
+        "AGENT_ENGINE",
+        "ARTIFACT_SERVICE_URI",
+        "ALLOW_ORIGINS",
+        "HOST",
+        "PORT",
+        "OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT",
+    ]
+
+    for var in env_vars_to_clean:
+        monkeypatch.delenv(var, raising=False)
+
+
+@pytest.fixture
+def mock_load_dotenv() -> Generator[MagicMock]:
+    """Mock load_dotenv function for testing.
+
+    Yields:
+        Mock object for load_dotenv function.
+    """
+    with patch("adk_docker_uv.utils.config.load_dotenv") as mock:
+        yield mock
+
+
+@pytest.fixture
+def mock_sys_exit() -> Generator[MagicMock]:
+    """Mock sys.exit with SystemExit side effect for testing validation failures.
+
+    Yields:
+        Mock object for sys.exit that raises SystemExit(1).
+    """
+    with patch("sys.exit", side_effect=SystemExit(1)) as mock:
+        yield mock
+
+
+@pytest.fixture
+def set_environment(
+    monkeypatch: pytest.MonkeyPatch,
+) -> Callable[[dict[str, str]], None]:
+    """Helper fixture to set multiple environment variables at once.
+
+    Args:
+        monkeypatch: Pytest monkeypatch fixture.
+
+    Returns:
+        Function that takes a dictionary and sets all key-value pairs as env vars.
+    """
+
+    def _set_env(env_dict: dict[str, str]) -> None:
+        """Set multiple environment variables from a dictionary.
+
+        Args:
+            env_dict: Dictionary of environment variable names and values.
+        """
+        for key, value in env_dict.items():
+            monkeypatch.setenv(key, value)
+
+    return _set_env
+
+
+@pytest.fixture
+def mock_print_config() -> Callable[[type], AbstractContextManager[MagicMock]]:
+    """Context manager factory for mocking print_config on any model class.
+
+    Returns:
+        Factory function that creates a context manager for mocking print_config.
+    """
+    from contextlib import contextmanager
+    from unittest.mock import patch
+
+    @contextmanager
+    def _mock_print_config(model_class: type) -> Generator[MagicMock]:
+        """Create a context manager for mocking print_config on a model class.
+
+        Args:
+            model_class: The Pydantic model class to mock print_config on.
+
+        Yields:
+            Mock object for the print_config method.
+        """
+        with patch.object(model_class, "print_config", autospec=True) as mock:
+            yield mock
+
+    return _mock_print_config

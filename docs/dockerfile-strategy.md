@@ -348,8 +348,7 @@ CMD ["python", "-m", "adk_docker_uv.server"]
 **What:** Default command when container starts
 **Why:**
 - Calls `server.main()` for unified startup logic
-  - Sets up file logging automatically (via `setup_file_logging()`)
-  - Future: Will support conditional logging backends (file vs OpenTelemetry)
+  - Sets up OpenTelemetry observability (traces and logs to Google Cloud)
   - Consistent entry point for both local dev (`uv run server`) and Docker
 - `main()` calls `uvicorn.run(app, host=os.getenv("HOST", "127.0.0.1"), port=...)`
   - Secure default: 127.0.0.1 (only local connections)

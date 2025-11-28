@@ -174,6 +174,14 @@ Deploys the ADK agent application to Cloud Run. Designed to run in **GitHub Acti
 3. **GCS Bucket for Artifacts** - Versioned storage for agent artifacts
 4. **Cloud Run Service** - HTTP/2 on port 8000, auto-scaling 0-100 instances, `RELOAD_AGENTS` hardcoded to FALSE
 
+### Environment-Specific Configuration
+
+**Resource naming:** All GCP resources use `local.resource_name = "${var.agent_name}-${terraform.workspace}"` (e.g., `my-agent-dev`, `my-agent-prod`)
+
+**Billing labels:** Resources tagged with `application = var.agent_name` and `environment = terraform.workspace` for cost tracking
+
+**Observability:** Cloud Run services automatically receive `TELEMETRY_NAMESPACE = terraform.workspace` env var, appearing as `service.namespace` in traces/logs for environment filtering
+
 ### IAM and Permissions Model
 
 **Project-level IAM assumption:** Dedicated GCP project per deployment. Service account has project-level roles for all resources.

@@ -24,6 +24,7 @@ locals {
   # Prepare for future regional Cloud Run redundancy
   locations = toset([var.location])
 
+  # Cloud Run service environment variables
   run_app_env = {
     ADK_SUPPRESS_EXPERIMENTAL_FEATURE_WARNINGS = coalesce(var.adk_suppress_experimental_feature_warnings, "TRUE")
     AGENT_ENGINE                               = coalesce(var.agent_engine, google_vertex_ai_reasoning_engine.session_and_memory.id)
@@ -37,6 +38,16 @@ locals {
     RELOAD_AGENTS                              = "FALSE"
     ROOT_AGENT_MODEL                           = coalesce(var.root_agent_model, "gemini-2.5-flash")
     SERVE_WEB_INTERFACE                        = coalesce(var.serve_web_interface, "FALSE")
+    TELEMETRY_NAMESPACE                        = terraform.workspace
+  }
+
+  # Create a unique Agent resource name per deployment environment using Terraform workspaces
+  resource_name = "${var.agent_name}-${terraform.workspace}"
+
+  # Create labels for billing organization
+  labels = {
+    application = var.agent_name
+    environment = terraform.workspace
   }
 
   # Recycle docker_image from previous deployment if not provided
@@ -44,9 +55,9 @@ locals {
 }
 
 resource "google_service_account" "app" {
-  account_id   = var.agent_name
-  description  = "${var.agent_name} Cloud Run service-attached service account"
-  display_name = "${var.agent_name} Service Account"
+  account_id   = local.resource_name
+  display_name = "${local.resource_name} Service Account"
+  description  = "Service account attached to the ${local.resource_name} Cloud Run service"
 }
 
 resource "google_project_iam_member" "app" {
@@ -57,8 +68,8 @@ resource "google_project_iam_member" "app" {
 }
 
 resource "google_vertex_ai_reasoning_engine" "session_and_memory" {
-  display_name = "Session and Memory: ${var.agent_name}"
-  description  = "Managed Session and Memory Bank Service"
+  display_name = "${local.resource_name} Sessions and Memory"
+  description  = "Managed Session and Memory Bank Service for the ${local.resource_name} app"
 }
 
 resource "random_id" "bucket_suffix" {
@@ -66,7 +77,7 @@ resource "random_id" "bucket_suffix" {
 }
 
 resource "google_storage_bucket" "artifact_service" {
-  name     = "artifact-service-${var.agent_name}-${random_id.bucket_suffix.hex}"
+  name     = "${local.resource_name}-artifact-service-${random_id.bucket_suffix.hex}"
   location = "US"
 
   uniform_bucket_level_access = true
@@ -79,11 +90,12 @@ resource "google_storage_bucket" "artifact_service" {
 
 resource "google_cloud_run_v2_service" "app" {
   for_each            = local.locations
-  name                = var.agent_name
+  name                = local.resource_name
   location            = each.key
   deletion_protection = false
   launch_stage        = "GA"
   ingress             = "INGRESS_TRAFFIC_ALL"
+  labels              = local.labels
 
   # Service-level scaling (updates without creating new revisions)
   scaling {

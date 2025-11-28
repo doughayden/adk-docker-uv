@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- OpenTelemetry observability with trace export to Google Cloud Trace via OTLP and log export to Cloud Logging with automatic trace correlation
+- Pydantic-based environment configuration (`ServerEnv` model) with type-safe validation and required field enforcement
+- Comprehensive observability documentation (`docs/observability.md`) covering setup, resource attributes, and usage
+- OpenTelemetry resource attributes for service identification: `service.name`, `service.namespace`, `service.version`, `service.instance.id`, and `gcp.project_id`
+- Workspace-based resource naming in Terraform using `local.resource_name = "${var.agent_name}-${terraform.workspace}"` for environment-specific resources
+- Automatic trace grouping by environment via `TELEMETRY_NAMESPACE` environment variable (set to workspace name in deployments)
+- Billing labels (`application`, `environment`) on all GCP resources for cost tracking and organization
+- UUID-based instance ID (`service.instance.id=worker-{PID}-{UUID}`) for collision-free process tracking
+- Cloud Run revision tracking via `service.version` resource attribute
+
+### Changed
+- Required environment variables now include `AGENT_NAME` (service identifier) and `OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT` (LLM content capture control)
+- Terraform resources now use workspace-based naming for environment isolation (e.g., `my-agent-dev`, `my-agent-prod`)
+- Cloud Run services automatically receive `TELEMETRY_NAMESPACE = terraform.workspace` environment variable for trace grouping
+- Server startup now configures OpenTelemetry before ADK initialization for proper resource attribute propagation
+- Environment configuration now uses Pydantic models with factory pattern (`initialize_environment`) for validation and error handling
+
+### Removed
+- File logging system with rotating handlers (replaced with cloud-native OpenTelemetry logging)
+- `src/adk_docker_uv/utils/env_parser.py` module (replaced with Pydantic-based configuration)
+- `src/adk_docker_uv/utils/log_config.py` module (replaced with `observability.py`)
+- `tests/test_env_parser.py` and `tests/test_logging.py` (replaced with `tests/test_config.py`)
+- Log volume mount from `docker-compose.yml` (no longer needed without file logging)
+
 ## [0.4.1] - 2025-11-26
 
 ### Changed

@@ -136,14 +136,14 @@ Example:
 from pathlib import Path
 
 # Good
-log_path = Path(".log/app.log")
-if log_path.exists():
-    content = log_path.read_text()
+data_file = Path("data/config.json")
+if data_file.exists():
+    content = data_file.read_text()
 
 # Bad - will be flagged by ruff
 import os
-if os.path.exists(".log/app.log"):
-    with open(".log/app.log") as f:
+if os.path.exists("data/config.json"):
+    with open("data/config.json") as f:
         content = f.read()
 ```
 
@@ -241,17 +241,18 @@ uv lock --upgrade
 uv lock --upgrade-package package-name
 ```
 
-## Logging
+## Observability
 
-Structured logging with rotating file handler (`.log/app.log`, 1MB max, 5 backups).
+OpenTelemetry integration with Google Cloud Trace and Cloud Logging.
 
 **Control log level:**
 ```bash
 LOG_LEVEL=DEBUG uv run server
 ```
 
-**Custom logger:**
-```python
-from adk_docker_uv.utils import setup_file_logging
-setup_file_logging(log_level="DEBUG")
-```
+**View traces and logs:**
+- Google Cloud Console: [Cloud Trace](https://console.cloud.google.com/traces) and [Logs Explorer](https://console.cloud.google.com/logs)
+- gcloud CLI: `gcloud logging tail "logName:projects/{PROJECT_ID}/logs/{AGENT_NAME}-otel-logs"`
+- VS Code: Install [Google Cloud Code extension](https://cloud.google.com/code/docs/vscode/install)
+
+See [docs/observability.md](observability.md) for complete configuration and usage details.

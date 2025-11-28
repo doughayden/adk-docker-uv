@@ -95,16 +95,15 @@ develop:
 
 ## File Locations
 
-### Logs
-- **Host:** `./.log/` (read-write mount)
-- **Container:** `/app/.log`
-- **Contains:** Application logs (rotating file handler)
-- **View logs:** `tail -f .log/app.log`
-
 ### Source Code
 - **Host:** `./src/`
 - **Container:** `/app/src`
 - **Sync:** Automatic via watch mode
+
+### Data Directory
+- **Host:** `./data/`
+- **Container:** `/app/data` (read-only)
+- **Purpose:** Optional data files for agent
 
 ---
 
@@ -149,8 +148,8 @@ SERVE_WEB_INTERFACE=true
 - **If stuck:** Stop and restart with `docker compose up --build --watch`
 
 ### Permission errors
-- Log directory: Ensure `./.log` directory exists and is writable
 - Data directory: Mounted read-only, should not need write access
+- Credentials: Ensure `~/.config/gcloud/application_default_credentials.json` exists and is readable
 
 ### Port already in use
 ```bash
@@ -215,7 +214,6 @@ DOCKER_BUILDKIT=1 docker build -t adk-docker-uv:latest .
 # Run directly
 docker run \
   -v ./data:/app/data:ro \
-  -v ./.log:/app/.log \
   -p 127.0.0.1:8000:8000 \
   --env-file .env \
   adk-docker-uv:latest
