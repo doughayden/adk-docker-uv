@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Use generic placeholders (your-agent-name, your_agent_name) instead of adk-docker-uv in documentation examples (#32, #33)
 - Update project structure tree in development.md to reflect current files and directories (#33)
+- Optimize CLAUDE.md for AI consumption: 36% size reduction (440→279 lines), replace verbose prose with dense technical summaries, update outdated utils references (env_parser.py → config.py/observability.py), add branch protection warning (#34)
 
 ## [0.5.0] - 2025-11-27
 
