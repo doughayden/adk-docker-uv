@@ -135,7 +135,8 @@ root_agent (LlmAgent)
 - **callbacks.py**: Lifecycle callbacks for logging and memory persistence (all return `None`)
 - **prompt.py**: Agent instructions and descriptions (includes InstructionProvider pattern)
 - **server.py**: FastAPI server with ADK integration
-- **utils/env_parser.py**: Environment variable parsing utilities with validation
+- **utils/config.py**: Pydantic-based environment configuration with validation
+- **utils/observability.py**: OpenTelemetry setup for tracing and logging
 
 ### FastAPI Server
 
@@ -404,25 +405,28 @@ Uses ADK's InstructionProvider pattern for dynamic instruction generation at req
 
 **Testing:** Use `MockReadonlyContext` from `tests/conftest.py`. See `prompt.py` and `test_prompt.py` for examples.
 
-### Environment Variable Parsing
+### Environment Configuration
 
-Use `parse_json_list_env()` from `utils.env_parser` for safe JSON list parsing:
+The project uses Pydantic-based configuration for type-safe environment variable handling:
 
 ```python
-from adk_docker_uv.utils import parse_json_list_env
+from adk_docker_uv.utils.config import ServerEnv, initialize_environment
 
-# Parses JSON array with validation and fallback
-origins = parse_json_list_env(
-    env_key="ALLOW_ORIGINS",
-    default='["http://127.0.0.1"]',
-)
+# Initialize and validate environment configuration
+env = initialize_environment(ServerEnv)
+
+# Access validated environment variables
+agent_name = env.agent_name
+project_id = env.google_cloud_project
+serve_ui = env.serve_web_interface
 ```
 
 **Features:**
-- Validates both environment value and default are JSON arrays of strings
-- Falls back to default on invalid JSON with warning to stdout
-- Raises ValueError on invalid default (fail-fast at startup)
-- Type-safe return type (`list[str]`) using TypeGuard
+- Type-safe validation with Pydantic models
+- Required field enforcement (fails fast if missing)
+- Factory pattern with `initialize_environment()` for clean initialization
+- Comprehensive error messages for configuration issues
+- Centralized configuration in `utils/config.py`
 
 ### Docker Compose Development
 
