@@ -194,23 +194,29 @@ tests/
 ## Project Structure
 
 ```
-adk-docker-uv/
-  src/adk_docker_uv/
+your-agent-name/
+  src/your_agent_name/
     agent.py              # LlmAgent configuration
     callbacks.py          # Agent callbacks
     prompt.py             # Agent prompts
     tools.py              # Custom tools
     server.py             # FastAPI development server
     utils/                # Utilities
-      env_parser.py         # Environment variable parsing
-      log_config.py         # Logging configuration
+      config.py           # Configuration and environment parsing
+      observability.py    # OpenTelemetry setup
   tests/                  # Test suite
-    conftest.py             # Shared fixtures
-    test_integration.py     # Integration tests
-    test_*.py               # Unit tests
+    conftest.py           # Shared fixtures
+    test_*.py             # Unit and integration tests
+  terraform/              # Infrastructure as code
+    bootstrap/            # One-time CI/CD setup
+    main/                 # Cloud Run deployment
   docs/                   # Documentation
+  notebooks/              # Jupyter notebooks
   .env.example            # Environment template
   pyproject.toml          # Project configuration
+  docker-compose.yml      # Local development
+  Dockerfile              # Container image
+  init_template.py        # Template initialization
   CLAUDE.md               # Project instructions
   README.md               # Main documentation
 ```
