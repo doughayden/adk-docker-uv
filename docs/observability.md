@@ -77,9 +77,9 @@ OpenTelemetry resource attributes uniquely identify your service instances in tr
 
 | Attribute | Source | Example | Description |
 |-----------|--------|---------|-------------|
-| `service.name` | `AGENT_NAME` env var | `adk-docker-uv` | Service identifier (set explicitly in `.env`) |
+| `service.name` | `AGENT_NAME` env var | `your-agent-name` | Service identifier (set explicitly in `.env`) |
 | `service.namespace` | `TELEMETRY_NAMESPACE` env var | `default`/`dev`/`stage`/`prod` (deployed) or `local` (dev) | Environment (via Terraform workspace) grouping for traces |
-| `service.version` | `K_REVISION` env var | `adk-docker-uv-00042-abc` (deployed) or `local` (dev) | Cloud Run revision or local dev indicator |
+| `service.version` | `K_REVISION` env var | `your-agent-name-00042-abc` (deployed) or `local` (dev) | Cloud Run revision or local dev indicator |
 | `service.instance.id` | Generated | `worker-1234-a1b2c3d4e5f6` | Unique process instance (PID + UUID) |
 | `gcp.project_id` | `GOOGLE_CLOUD_PROJECT` env var | `my-project-id` | GCP project for resource correlation |
 

@@ -287,11 +287,11 @@ ENV VIRTUAL_ENV=/app/.venv \
 **The Problem:**
 
 When the package is installed in **non-editable mode** (Docker), the source code is copied to the virtual environment's site-packages:
-- Local (editable): `Path(__file__)` → `/path/to/project/src/adk_docker_uv/server.py`
-- Docker (non-editable): `Path(__file__)` → `/app/.venv/lib/python3.13/site-packages/adk_docker_uv/server.py`
+- Local (editable): `Path(__file__)` → `/path/to/project/src/your_agent_name/server.py`
+- Docker (non-editable): `Path(__file__)` → `/app/.venv/lib/python3.13/site-packages/your_agent_name/server.py`
 
 Using `Path(__file__).parent.parent` for `AGENT_DIR`:
-- Local: Resolves to `/path/to/project/src/` ✅ Correct (contains only adk_docker_uv/)
+- Local: Resolves to `/path/to/project/src/` ✅ Correct (contains only your_agent_name/)
 - Docker: Resolves to `/app/.venv/lib/python3.13/site-packages/` ❌ Wrong (contains all packages)
 
 This causes the ADK web UI to show all installed packages (.dist-info directories) instead of just our agent.
@@ -343,7 +343,7 @@ EXPOSE 8000
 ### Startup Command
 ```dockerfile
 # Run the FastAPI server via main() for unified startup logic (logging, etc.)
-CMD ["python", "-m", "adk_docker_uv.server"]
+CMD ["python", "-m", "your_agent_name.server"]
 ```
 **What:** Default command when container starts
 **Why:**
