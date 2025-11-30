@@ -505,7 +505,7 @@ For local development workflow using Docker Compose (recommended), see [Docker C
 
 For direct Docker builds without Compose:
 ```bash
-DOCKER_BUILDKIT=1 docker build -t adk-docker-uv:latest .
+DOCKER_BUILDKIT=1 docker build -t your-agent-name:latest .
 ```
 
 ---
