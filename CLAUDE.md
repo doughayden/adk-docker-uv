@@ -2,6 +2,14 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Branch Protection
+
+**CRITICAL: Never commit to `main`.** Branch protection prevents direct pushes.
+
+**Workflow:** Create feature branch → commit → push → PR → merge.
+
+**Recovery from accidental main commit:** `git branch feature-name && git reset --hard origin/main && git checkout feature-name`
+
 ## Project Overview
 
 This is an ADK (Agent Development Kit) application containerized with Docker and optimized with `uv` package manager. The project demonstrates best practices for deploying Google ADK agents in production using multi-stage Docker builds, hot reloading for local development, and strict code quality standards.
@@ -17,40 +25,22 @@ This is an ADK (Agent Development Kit) application containerized with Docker and
 
 ### Terraform Infrastructure Setup (One-Time)
 
-Initialize GCP and GitHub resources with Terraform bootstrap:
-
 ```bash
-# Configure .env with required values:
-# - AGENT_NAME, GOOGLE_CLOUD_PROJECT, GOOGLE_CLOUD_LOCATION
-# - OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT
-# - GITHUB_REPO_NAME, GITHUB_REPO_OWNER
-
-# Run bootstrap (from repo root, uses local state)
-terraform -chdir=terraform/bootstrap init
-terraform -chdir=terraform/bootstrap plan
-terraform -chdir=terraform/bootstrap apply
-
-# Outputs: WIF provider, registry URI, state bucket name, GitHub Variables created
+# Configure .env: AGENT_NAME, GOOGLE_CLOUD_PROJECT, GOOGLE_CLOUD_LOCATION,
+# OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT, GITHUB_REPO_NAME, GITHUB_REPO_OWNER
+terraform -chdir=terraform/bootstrap init/plan/apply
 ```
 
-Bootstrap creates CI/CD infrastructure:
-- Workload Identity Federation for GitHub Actions
-- Artifact Registry with cleanup policies
-- **GCS bucket for main module's Terraform state**
-- **GitHub Actions Variables** (all CI/CD config auto-created)
-
-**Note:** Agent Engine created by main module (in CI/CD), not bootstrap.
+Creates: WIF, Artifact Registry, GCS state bucket, GitHub Actions Variables. Agent Engine created by main module in CI/CD.
 
 ### Template Initialization (One-Time)
 
-If this repo was created from the template, initialize it first:
-
 ```bash
-uv run init_template.py --dry-run  # Preview changes
-uv run init_template.py            # Apply changes
+uv run init_template.py --dry-run  # Preview
+uv run init_template.py            # Apply
 ```
 
-Script renames package, updates config/docs, updates GitHub Actions badges, resets CODEOWNERS file, resets version to 0.1.0, resets changelog. Creates audit log at `init_template_results.md` (gitignored).
+Renames package, updates config/docs/badges, resets CODEOWNERS/version/changelog. Audit log: `init_template_results.md` (gitignored).
 
 ### Running Locally
 
@@ -70,50 +60,27 @@ LOG_LEVEL=DEBUG uv run server
 ### Docker Compose (Recommended for Local Development)
 
 ```bash
-# Start with hot reloading (changes to src/ sync instantly)
-docker compose up --build --watch
-
-# Stop
+docker compose up --build --watch  # Hot reload: src/ instant sync, deps auto-rebuild
 docker compose down
-
-# View logs
 docker compose logs -f app
 ```
-
-**Watch mode behavior:**
-- `src/` changes → instant sync (no rebuild)
-- `pyproject.toml` or `uv.lock` changes → automatic rebuild
 
 ### Code Quality
 
 ```bash
-# Format code
-uv run ruff format
-
-# Lint code
-uv run ruff check
-
-# Type check
-uv run mypy
-
-# Run all checks (one-liner)
-uv run ruff format && uv run ruff check && uv run mypy
+uv run ruff format  # Format
+uv run ruff check   # Lint
+uv run mypy         # Type check
+uv run ruff format && uv run ruff check && uv run mypy  # All
 ```
 
 ### Testing
 
 ```bash
-# Run all tests
-uv run pytest -v
-
-# Run tests with coverage (100% required on non-excluded files)
-uv run pytest --cov --cov-report=term-missing
-
-# Run specific test file
-uv run pytest tests/test_context.py -v
-
-# Run specific test function
-uv run pytest tests/test_context.py::test_load_success -v
+uv run pytest -v                                            # All tests
+uv run pytest --cov --cov-report=term-missing               # With coverage (100% required)
+uv run pytest tests/test_context.py -v                      # Specific file
+uv run pytest tests/test_context.py::test_load_success -v   # Specific test
 ```
 
 ## Architecture
@@ -140,13 +107,9 @@ root_agent (LlmAgent)
 
 ### FastAPI Server
 
-The server (`src/adk_docker_uv/server.py`) provides:
-- ADK agent API endpoints via `get_fast_api_app()`
-- Optional web UI (controlled by `SERVE_WEB_INTERFACE` env var)
-- Health check endpoint at `/health`
-- Configurable CORS for localhost development
+`src/adk_docker_uv/server.py`: ADK agent API endpoints (`get_fast_api_app()`), optional web UI (`SERVE_WEB_INTERFACE`), health check (`/health`), CORS for localhost.
 
-**Entry point:** `python -m adk_docker_uv.server` (calls `main()` which sets up logging and starts uvicorn)
+**Entry point:** `python -m adk_docker_uv.server`
 
 ### Multi-Stage Docker Build
 
@@ -160,51 +123,23 @@ See `docs/dockerfile-strategy.md` for detailed rationale.
 
 ### Observability
 
-**OpenTelemetry setup** (all environments):
-- Traces exported to Google Cloud Trace via OTLP
-- Logs exported to Google Cloud Logging with automatic trace correlation
-- Service identification (`service.name`) via `AGENT_NAME` environment variable
-- Instance-level tracking with `service.instance.id=worker-{PID}-{UUID}` (UUID prevents collisions)
-- Environment grouping (`service.namespace`) via `TELEMETRY_NAMESPACE` env var (defaults to `"local"`, set to  terraform workspace in deployments))
-- Version tracking via `service.version` (auto-set to Cloud Run revision ID from `K_REVISION` environment variable)
-- Control: `LOG_LEVEL` env var (DEBUG, INFO, WARNING, ERROR, CRITICAL)
-- Content capture: `OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT` (TRUE/FALSE)
+OpenTelemetry exports traces to Cloud Trace (OTLP) and logs to Cloud Logging (auto trace correlation). Resource attributes: `service.name` (AGENT_NAME), `service.instance.id` (worker-{PID}-{UUID}), `service.namespace` (TELEMETRY_NAMESPACE, defaults "local", set to workspace in deployments), `service.version` (K_REVISION). Controls: LOG_LEVEL, OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT.
 
-**Callback logging:** `LoggingCallbacks` (in `callbacks.py`) logs agent lifecycle events with trace context correlation.
-
-See `docs/observability.md` for complete configuration, resource attributes, and usage details.
+`LoggingCallbacks` logs agent lifecycle with trace context. See `docs/observability.md`.
 
 ## Code Quality Standards
 
 ### Type Checking
 
-**Strict mypy configuration** with comprehensive checks enabled:
-- All functions must have complete type annotations
-- Modern Python 3.13 syntax: `|` for unions, lowercase generics (`list[str]`)
-- No untyped definitions or decorators allowed
-- Pydantic models provide runtime validation
+Strict mypy: complete type annotations required, modern Python 3.13 syntax (`|` unions, lowercase generics `list[str]`), no untyped definitions/decorators, Pydantic runtime validation.
 
 ### Linting and Formatting
 
-**Ruff configuration:**
-- Line length: 88 characters (Black-compatible)
-- Auto-fix enabled
-- Enforces: pycodestyle, pyflakes, isort, flake8-bugbear, pyupgrade, pep8-naming, flake8-bandit, flake8-simplify, flake8-use-pathlib
-- **Always use `Path` objects** for file operations (never `os.path`)
+Ruff: 88 char line length, auto-fix, enforces pycodestyle/pyflakes/isort/flake8-bugbear/pyupgrade/pep8-naming/bandit/simplify/use-pathlib. **Always use `Path` objects** (never `os.path`).
 
 ### Testing
 
-**Requirements:**
-- 100% coverage on all production code (excludes: `server.py`, `agent.py`)
-- Tests organized by feature in separate files
-- Shared fixtures in `conftest.py` (reusable, eliminates patching in individual tests)
-- Duck-typed mocks that satisfy ADK protocols
-- Async test support via pytest-asyncio
-
-**Test patterns:**
-- Use pytest's `capsys` fixture for capturing and validating stdout/stderr
-- Use `patch.dict(os.environ, ...)` for environment variable testing
-- Validate both success cases and error handling (invalid input, missing values, type mismatches)
+100% coverage on production code (excludes: `server.py`, `agent.py`). Tests by feature, shared fixtures in `conftest.py`, duck-typed mocks, pytest-asyncio. Patterns: `capsys` for stdout/stderr, `patch.dict(os.environ, ...)` for env vars, validate success + error cases.
 
 ## Environment Variables
 
@@ -230,106 +165,34 @@ See `.env.example` for complete list.
 
 ## Dependency Management
 
-**Standard workflow:**
 ```bash
-# Add runtime dependency
-uv add package-name
-
-# Add dev dependency
-uv add --group dev package-name
-
-# Update all dependencies
-uv lock --upgrade
-
-# Update specific package
-uv lock --upgrade-package package-name
+uv add package-name              # Add runtime dep
+uv add --group dev package-name  # Add dev dep
+uv lock --upgrade                # Update all
+uv lock --upgrade-package pkg    # Update specific
 ```
 
-**IMPORTANT: Version bump workflow** (see `~/.claude/rules/python-projects.md`):
-1. Update `version` in `pyproject.toml`
-2. **MUST run `uv lock`** to update lockfile
-3. Commit both files together
-
-**Why:** CI uses `uv sync --locked` which validates lockfile matches pyproject.toml and fails if out of sync.
+**Version bump:** Update `version` in `pyproject.toml` → `uv lock` → commit both. CI uses `uv sync --locked` (fails if out of sync).
 
 ## CI/CD
 
-**Workflow pattern** in `.github/workflows/`:
-- **ci-cd.yml**: Orchestrator (meta → build → deploy)
-- **metadata-extract.yml**: Reusable metadata extraction workflow
-- **docker-build.yml**: Reusable build workflow
-- **terraform-plan-apply.yml**: Reusable Terraform deployment
-- **code-quality.yml**: Runs ruff format, ruff check, mypy
-- **required-checks.yml**: Composite checks for branch protection
+**Workflows:** ci-cd.yml (orchestrator: meta→build→deploy), metadata-extract.yml (metadata), docker-build.yml (build), terraform-plan-apply.yml (deploy), code-quality.yml (ruff/mypy), required-checks.yml (branch protection).
 
-**Workflow behavior:**
-- **PR:** Build `pr-{number}-{sha}` image, run `terraform plan`, post comment
-- **Main:** Build `{sha}` + `latest` + `{version}` tags, deploy by **digest** to Cloud Run
-- **Tag push (`v*`):** Triggers CI/CD to build version-tagged Docker image (e.g., `v0.4.0`)
-- **Deployment:** Uses image **digest** (`registry/image@sha256:...`) instead of tag, ensuring every rebuild triggers new Cloud Run revision
-- **Concurrency:** PRs cancel in-progress, main runs sequentially, per-workspace Terraform locking
+**Behavior:** PR = build `pr-{number}-{sha}`, terraform plan, post comment. Main = build `{sha}`+`latest`+`{version}`, deploy by digest. Tag push (`v*`) = version-tagged build. Deployment uses image **digest** (not tag) to ensure every rebuild triggers new Cloud Run revision. Concurrency: PRs cancel in-progress, main sequential, per-workspace Terraform locking.
 
-**Version tag trigger:** Tag push (`v*`) triggers build after release PR merged. Safe because tags point to reviewed code, only authorized users can push tags.
-
-**Auth:** Workload Identity Federation (no service account keys), configured by Terraform bootstrap.
-
-**GitHub Variables (auto-created by bootstrap):**
-- `GCP_PROJECT_ID`, `GCP_LOCATION`, `IMAGE_NAME`
-- `GCP_WORKLOAD_IDENTITY_PROVIDER`, `ARTIFACT_REGISTRY_URI`, `ARTIFACT_REGISTRY_LOCATION`
-- `TERRAFORM_STATE_BUCKET`
-
-**Note:** These are Variables (not Secrets) - resource identifiers, not credentials. Security via IAM policies.
+**Auth:** WIF (no SA keys), configured by bootstrap. **GitHub Variables** (auto-created): GCP_PROJECT_ID, GCP_LOCATION, IMAGE_NAME, GCP_WORKLOAD_IDENTITY_PROVIDER, ARTIFACT_REGISTRY_URI, ARTIFACT_REGISTRY_LOCATION, TERRAFORM_STATE_BUCKET (resource IDs, not credentials).
 
 ### GitHub Actions Job Summaries
 
-**What:** Use `$GITHUB_STEP_SUMMARY` environment variable to display formatted summaries in GitHub Actions UI (visible on workflow run page and PR summary).
+Workflows use `$GITHUB_STEP_SUMMARY` for formatted output. Key patterns: export GitHub context to shell vars for bash manipulation, capture expensive commands once, check for empty outputs before display, conditionally post to PR comments vs always write to summary.
 
-**Key patterns:**
-
-1. **GitHub context variable export** - Export context to shell variable for bash string manipulation:
-   ```bash
-   GITHUB_REF="${{ github.ref }}"
-   # Now bash parameter expansion works: ${GITHUB_REF#refs/tags/}
-   ```
-   Why: GitHub expressions (`${{ }}`) cannot be used inside bash string operations.
-
-2. **Capture-once pattern** - Execute expensive commands (e.g., `terraform output`) once, reuse in variables:
-   ```bash
-   SERVICE_ACCOUNT=$(terraform output -raw email 2>/dev/null || echo "")
-   if [ -n "$SERVICE_ACCOUNT" ]; then
-     echo "- **Service Account:** \`${SERVICE_ACCOUNT}\`" >> $GITHUB_STEP_SUMMARY
-   fi
-   ```
-   Why: Avoids duplicate terraform invocations in conditional checks and output lines.
-
-3. **Defensive empty checks** - Check for empty/missing outputs before displaying:
-   ```bash
-   if [ -n "${{ steps.plan.outputs.stdout }}" ]; then
-     # Show plan output in details block
-   fi
-   ```
-   Why: Prevents errors and empty sections when optional outputs are missing.
-
-4. **Conditional sections** - Include/exclude sections based on workflow context (plan vs apply, PR vs main):
-   ```bash
-   if [ "${{ inputs.terraform_action }}" == "apply" ]; then
-     echo "| 🚀 Apply | ${icon} | outcome |" >> $GITHUB_STEP_SUMMARY
-   fi
-   ```
-
-**Implementation examples:**
-- **Metadata job** (metadata-extract.yml): Shows build context (event type, branch/tag, commit SHA) and image tags as bulleted list
-- **Terraform job** (terraform-plan-apply.yml): Shows workspace, action, step status table, plan output, deployed resources
+**Implementations:** metadata-extract.yml (build context, image tags), terraform-plan-apply.yml (step status, plan output)
 
 ## Image Digest Deployment
 
-**Critical pattern:** Deploy with immutable digest (`registry/image@sha256:...`), not mutable tag. Tags are mutable - rebuilding same tag won't trigger Cloud Run redeployment. Digests are unique per build, guaranteeing new revision.
+Deploy with immutable digest (`registry/image@sha256:...`), not mutable tag. Digests unique per build, guarantee new Cloud Run revision. Flow: docker-build.yml outputs digest → ci-cd.yml → TF_VAR_docker_image → Cloud Run.
 
-**Workflow:** `docker-build.yml` outputs digest URI → `ci-cd.yml` passes to Terraform via `TF_VAR_docker_image` → Cloud Run deploys new revision.
-
-**Multi-platform digests:** Manifest list digest (deployed) ≠ platform-specific digest (running). This is expected. Workflow outputs manifest list, Cloud Run pulls and selects platform (linux/amd64). Service shows manifest digest, revision shows platform digest.
-
-See [Validating Multi-Platform Docker Builds](docs/validating-multiplatform-builds.md) for verification workflows.
+Multi-platform: manifest list digest (deployed) ≠ platform digest (running). Expected. See `docs/validating-multiplatform-builds.md`.
 
 ## Terraform Infrastructure
 
@@ -340,34 +203,22 @@ See [Validating Multi-Platform Docker Builds](docs/validating-multiplatform-buil
 
 ### Running Terraform
 
-**Pattern:** Use `-chdir` flag (run from repo root).
-
+Use `-chdir` flag from repo root:
 ```bash
-# Bootstrap (one-time, local execution)
-terraform -chdir=terraform/bootstrap init
-terraform -chdir=terraform/bootstrap plan
-terraform -chdir=terraform/bootstrap apply
-# Creates GitHub Variables, GCS state bucket, WIF, Artifact Registry
+terraform -chdir=terraform/bootstrap init/plan/apply
 ```
 
-**Resource naming convention:** All GCP resources use `local.resource_name = "${var.agent_name}-${terraform.workspace}"` for environment-specific naming. This ensures unique resource names per deployment environment (e.g., `my-agent-dev`, `my-agent-prod`).
+**Naming:** GCP resources use `${var.agent_name}-${terraform.workspace}` (e.g., `my-agent-dev`). Billing labels: `application`, `environment`. Workspaces: bootstrap=`default`, main=`default`/`dev`/`stage`/`prod`.
 
-**Billing labels:** Resources tagged with `application = var.agent_name` and `environment = terraform.workspace` for cost tracking and organization.
+**Auto config:** Cloud Run gets `TELEMETRY_NAMESPACE=terraform.workspace` for trace grouping.
 
-**Workspaces:** Bootstrap uses `default`, main uses workspaces for environments (default/dev/stage/prod).
+**Variable overrides:** GitHub Variables → `TF_VAR_*`. `coalesce()` skips empty strings/nulls. Overridable: log_level, serve_web_interface, allow_origins, root_agent_model, artifact_service_uri, agent_engine.
 
-**Automatic observability config:** Cloud Run services automatically receive `TELEMETRY_NAMESPACE = terraform.workspace` env var for trace grouping by environment.
+**IAM:** Dedicated GCP project per env. Project-level roles = same-project access only. Cross-project buckets need external IAM + `ARTIFACT_SERVICE_URI`. App SA roles: terraform/main/main.tf. WIF roles: terraform/bootstrap/main.tf.
 
-**Variable overrides (CI/CD):** GitHub Actions Variables → `TF_VAR_*` env vars. `coalesce()` skips empty strings and nulls, applies defaults. Override: `log_level`, `serve_web_interface`, `allow_origins` (JSON array), `root_agent_model`, `artifact_service_uri`, `agent_engine`.
+**Cloud Run probe:** Allow credential init (~30-60s). Config: failure_threshold=5, period_seconds=20, initial_delay_seconds=20, timeout_seconds=15, total 120s. Debug: local works but Cloud Run fails = credential/timing.
 
-See `docs/terraform-infrastructure.md` for detailed setup and IAM patterns.
-
-**IAM model:** Dedicated GCP project per environment. Project-level IAM roles grant access to same-project resources only. Cross-project buckets require external IAM config + `ARTIFACT_SERVICE_URI` override.
-
-**App service account roles:** See `terraform/main/main.tf` (Vertex AI, storage, logging, tracing).
-**GitHub Actions WIF roles:** See `terraform/bootstrap/main.tf` (Vertex AI, Artifact Registry, IAM, storage).
-
-**Cloud Run startup probe:** Must allow time for credential initialization (~30-60s). Config: `failure_threshold=5, period_seconds=20, initial_delay_seconds=20, timeout_seconds=15`, HTTP `/health` endpoint. Total window: 120s. Aggressive config causes DEADLINE_EXCEEDED with no logs. Debug: Test locally first (`docker compose up`), if works locally but fails in Cloud Run = credential/timing issue.
+See `docs/terraform-infrastructure.md`.
 
 ## Project-Specific Patterns
 
@@ -389,73 +240,32 @@ my_tool = Tool(
 
 ### Agent Callbacks
 
-The project uses callback pattern for cross-cutting concerns:
-- `LoggingCallbacks`: Lifecycle logging at all stages
-- `add_session_to_memory`: Automatic session persistence to memory service
-
-All callbacks in this project return `None` and are non-intrusive (they only observe, not modify the agent flow).
+Callback pattern: `LoggingCallbacks` (lifecycle logging), `add_session_to_memory` (session persistence). All return `None`, non-intrusive (observe only).
 
 ### InstructionProvider Pattern
 
-Uses ADK's InstructionProvider pattern for dynamic instruction generation at request time (enables current dates, session-aware customization).
-
-**Signature:** `def instruction_provider(ctx: ReadonlyContext) -> str`
-- Pass function reference to `LlmAgent(global_instruction=func)`, not a call
-- `ctx` provides: `state` (read-only session), `agent_name`, `invocation_id`, `user_content`, `session`
-
-**Testing:** Use `MockReadonlyContext` from `tests/conftest.py`. See `prompt.py` and `test_prompt.py` for examples.
+Dynamic instruction generation: `def instruction_provider(ctx: ReadonlyContext) -> str`. Pass function ref to `LlmAgent(global_instruction=func)`, not call. `ctx`: state, agent_name, invocation_id, user_content, session. Test with `MockReadonlyContext` (conftest.py).
 
 ### Environment Configuration
 
-The project uses Pydantic-based configuration for type-safe environment variable handling:
-
-```python
-from adk_docker_uv.utils.config import ServerEnv, initialize_environment
-
-# Initialize and validate environment configuration
-env = initialize_environment(ServerEnv)
-
-# Access validated environment variables
-agent_name = env.agent_name
-project_id = env.google_cloud_project
-serve_ui = env.serve_web_interface
-```
-
-**Features:**
-- Type-safe validation with Pydantic models
-- Required field enforcement (fails fast if missing)
-- Factory pattern with `initialize_environment()` for clean initialization
-- Comprehensive error messages for configuration issues
-- Centralized configuration in `utils/config.py`
+Pydantic-based config: `env = initialize_environment(ServerEnv)`. Type-safe validation, required field enforcement (fail-fast), factory pattern, comprehensive errors. Centralized in `utils/config.py`.
 
 ### Docker Compose Development
 
-**File locations in container:**
-- Source code: `/app/src` (synced from `./src`)
-- Data directory: `/app/data` (mounted from `./data`, read-only)
-- GCP credentials: `/gcloud/application_default_credentials.json` (mounted from `~/.config/gcloud/`)
+Container paths: `/app/src` (synced from `./src`), `/app/data` (from `./data`, read-only), `/gcloud/application_default_credentials.json` (from `~/.config/gcloud/`).
 
-**Note for Windows:** Update volume path in `docker-compose.yml` for GCP credentials (see comments in file).
-
-**Security:** The compose file binds to `127.0.0.1:8000` (localhost only) to prevent external network access. To allow access from other machines, change to `8000:8000`, but this is not recommended for development with sensitive data.
+Windows: Update GCP creds volume path (see docker-compose.yml comments). Security: Binds to `127.0.0.1:8000` (localhost only).
 
 ### Testing Registry Images
 
-Test exact CI/CD artifacts locally:
-
 ```bash
-# One-time: Authenticate to registry
-gcloud auth configure-docker <registry-location>-docker.pkg.dev
-
-# Set image name and pull
+gcloud auth configure-docker <registry-location>-docker.pkg.dev  # One-time
 export REGISTRY_IMAGE="<location>-docker.pkg.dev/<project>/<repo>/<image>:latest"
 docker pull $REGISTRY_IMAGE
-
-# Run with registry override
 docker compose -f docker-compose.yml -f docker-compose.registry.yml up
 ```
 
-Container runs with `-registry` suffix to distinguish from locally-built images.
+Container suffix: `-registry`.
 
 ## Documentation
 
