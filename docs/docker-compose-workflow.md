@@ -209,14 +209,14 @@ If you need to build and run without docker-compose:
 
 ```bash
 # Build the image with BuildKit
-DOCKER_BUILDKIT=1 docker build -t adk-docker-uv:latest .
+DOCKER_BUILDKIT=1 docker build -t your-agent-name:latest .
 
 # Run directly
 docker run \
   -v ./data:/app/data:ro \
   -p 127.0.0.1:8000:8000 \
   --env-file .env \
-  adk-docker-uv:latest
+  your-agent-name:latest
 ```
 
 **Note:** Docker Compose is recommended - it handles volumes, environment, and networking automatically.

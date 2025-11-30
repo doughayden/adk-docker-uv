@@ -58,7 +58,7 @@ cp .env.example .env
 **Required variables:**
 - `GOOGLE_CLOUD_PROJECT` - GCP project ID
 - `GOOGLE_CLOUD_LOCATION` - GCP region (e.g., `us-central1`)
-- `AGENT_NAME` - Your agent name (e.g., `adk-docker-uv`)
+- `AGENT_NAME` - Your agent name (e.g., `your-agent-name`)
 - `OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT` - Capture LLM content in traces (TRUE/FALSE)
 - `GITHUB_REPO_NAME` - Repository name
 - `GITHUB_REPO_OWNER` - GitHub username or organization
@@ -150,8 +150,8 @@ gh variable list
 # GCP_LOCATION                   us-central1
 # GCP_PROJECT_ID                 your-project-id
 # GCP_WORKLOAD_IDENTITY_PROVIDER projects/.../locations/global/...
-# IMAGE_NAME                     adk-docker-uv
-# TERRAFORM_STATE_BUCKET         terraform-state-adk-docker-uv-a1b2c3d4
+# IMAGE_NAME                     your-agent-name
+# TERRAFORM_STATE_BUCKET         terraform-state-your-agent-name-a1b2c3d4
 ```
 
 ### Security: Dotenv Provider
