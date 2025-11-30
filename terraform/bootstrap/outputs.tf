@@ -13,9 +13,14 @@ output "agent_name" {
   value       = local.agent_name
 }
 
-output "repository_full_name" {
+output "github_repository_full_name" {
   description = "Full GitHub repository name (owner/repo)"
   value       = "${local.repository_owner}/${local.repository_name}"
+}
+
+output "github_repository_id" {
+  description = "GitHub repository ID"
+  value = data.github_repository.agent.repo_id
 }
 
 output "enabled_services" {
@@ -43,17 +48,7 @@ output "artifact_registry_repository_uri" {
   value       = google_artifact_registry_repository.cloud_run.registry_uri
 }
 
-output "github_repository_full_name" {
-  description = "GitHub repository full name"
-  value = "${local.repository_owner}/${local.repository_name}"
-}
-
-output "github_repository_id" {
-  description = "GitHub repository ID"
-  value = data.github_repository.agent.repo_id
-}
-
-output "github_variables_configured" {
+output "github_repository_variables" {
   description = "GitHub repository variables configured"
   value = { for index, instance in github_actions_variable.variable :
     index => instance.value
