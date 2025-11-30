@@ -269,8 +269,10 @@ Container suffix: `-registry`.
 
 ## Documentation
 
-- **docs/cicd-setup.md**: CI/CD automation (build/deployment)
+- **docs/bootstrap-setup.md**: One-time CI/CD infrastructure provisioning (minimal commands, troubleshooting)
+- **docs/environment-variables.md**: Complete environment variable reference (WHEN/WHY/HOW context)
 - **docs/development.md**: Development workflows, code quality, testing
+- **docs/cicd-setup.md**: CI/CD automation (build/deployment)
 - **docs/docker-compose-workflow.md**: Hot reloading, local development
 - **docs/dockerfile-strategy.md**: Multi-stage build rationale
 - **docs/terraform-infrastructure.md**: Terraform setup (bootstrap/main modules, variable overrides, IAM patterns)
