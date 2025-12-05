@@ -20,7 +20,7 @@ output "github_repository_full_name" {
 
 output "github_repository_id" {
   description = "GitHub repository ID"
-  value = data.github_repository.agent.repo_id
+  value       = data.github_repository.agent.repo_id
 }
 
 output "enabled_services" {

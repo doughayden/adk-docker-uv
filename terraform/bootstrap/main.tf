@@ -35,6 +35,7 @@ locals {
 
 resource "google_project_service" "main" {
   for_each           = toset(local.services)
+  project            = local.project
   service            = each.value
   disable_on_destroy = false
 }
@@ -44,12 +45,14 @@ data "github_repository" "agent" {
 }
 
 resource "google_iam_workload_identity_pool" "github" {
+  project                   = local.project
   workload_identity_pool_id = substr("actions-${data.github_repository.agent.repo_id}", 0, 32)
   display_name              = "GitHub Actions"
   description               = "GitHub Actions - repository: ${local.repository_owner}/${local.repository_name}, repo ID: ${data.github_repository.agent.repo_id}"
 }
 
 resource "google_iam_workload_identity_pool_provider" "github" {
+  project                            = local.project
   workload_identity_pool_provider_id = substr("gh-oidc-${data.github_repository.agent.repo_id}", 0, 32)
   workload_identity_pool_id          = google_iam_workload_identity_pool.github.workload_identity_pool_id
   display_name                       = "GitHub OIDC"
@@ -78,6 +81,7 @@ resource "random_id" "bucket_suffix" {
 }
 
 resource "google_storage_bucket" "terraform_state" {
+  project  = local.project
   name     = "terraform-state-${local.agent_name}-${random_id.bucket_suffix.hex}"
   location = "US"
 
@@ -90,6 +94,7 @@ resource "google_storage_bucket" "terraform_state" {
 }
 
 resource "google_artifact_registry_repository" "cloud_run" {
+  project                = local.project
   repository_id          = local.agent_name
   format                 = "DOCKER"
   description            = "Cloud Run Docker repository: ${local.agent_name}"

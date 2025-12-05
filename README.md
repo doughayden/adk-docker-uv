@@ -20,25 +20,25 @@ A production-ready template for deploying Google ADK (Agent Development Kit) age
 ### Phase 1: Setup (One-Time)
 
 ```bash
-# 1. Initialize from template (if using as template)
+# 0. Initialize from template (if using as template)
 uv run init_template.py  # Only if using as GitHub template; --dry-run to preview
 git add -A && git commit -m "chore: initialize from template"
 
-# 2. Configure environment
+# 1. Configure environment
 cp .env.example .env
 # Edit: GOOGLE_CLOUD_PROJECT, GOOGLE_CLOUD_LOCATION, AGENT_NAME,
 #       OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT,
 #       GITHUB_REPO_NAME, GITHUB_REPO_OWNER
 
-# 3. Authenticate
+# 2. Authenticate
 gcloud auth application-default login
 gh auth login
 
-# 4. Provision CI/CD infrastructure
+# 3. Provision CI/CD infrastructure
 terraform -chdir=terraform/bootstrap init
 terraform -chdir=terraform/bootstrap apply
 
-# 5. Verify
+# 4. Verify
 gh variable list  # or view in GitHub repo Settings > Variables
 ```
 
