@@ -8,24 +8,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
-- Move OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT to required section in Terraform variables (#31)
-- Prevent workload identity federation resource ID collisions by using GitHub repository ID instead of repository name, ensuring unique identifiers even for repositories with similar names (#35)
+- Move OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT to required section in Terraform variables
+- Prevent workload identity federation resource ID collisions by using GitHub repository ID instead of repository name, ensuring unique identifiers even for repositories with similar names
 - Add `shell: bash {0}` to terraform plan for error output capture
 - Truncate service account IDs to enforce GCP 30-character limit
-- Add explicit project parameters to all GCP resources in bootstrap Terraform module for clarity and reduced misconfiguration risk (#39)
-- Exclude main Terraform module lockfile from version control to prevent platform-specific conflicts from local testing (CI/CD-only execution) (#39)
 
 ### Added
-- Dedicated bootstrap setup guide (`docs/bootstrap-setup.md`) with minimal commands and troubleshooting (#36)
-- Comprehensive environment variables reference (`docs/environment-variables.md`) with WHEN/WHY/HOW context for each variable (#36)
+- Dedicated bootstrap setup guide (`docs/bootstrap-setup.md`) with minimal commands and troubleshooting
+- Comprehensive environment variables reference (`docs/environment-variables.md`) with WHEN/WHY/HOW context for each variable
 
 ### Changed
-- Streamline developer onboarding: condense README from 170 to 106 lines (38% reduction), integrate template initialization into Getting Started Phase 1, remove duplication between Quickstart and Getting Started sections (#36)
-- Condense development guide from 315 to 164 lines (48% reduction) with even density throughout, remove verbose code examples, combine related workflow sections (#36)
-- Reorganize README Documentation section with logical grouping: Getting Started, Infrastructure and Deployment, Production Features (#36)
-- Use generic placeholders (your-agent-name, your_agent_name) instead of adk-docker-uv in documentation examples (#32, #33)
-- Update project structure tree in development.md to reflect current files and directories (#33)
-- Optimize CLAUDE.md for AI consumption: 36% size reduction (440→279 lines), replace verbose prose with dense technical summaries, update outdated utils references (env_parser.py → config.py/observability.py), add branch protection warning (#34)
+- Streamline developer onboarding: condense README from 170 to 106 lines (38% reduction), integrate template initialization into Getting Started Phase 1, remove duplication between Quickstart and Getting Started sections
+- Condense development guide from 315 to 164 lines (48% reduction) with even density throughout, remove verbose code examples, combine related workflow sections
+- Reorganize README Documentation section with logical grouping: Getting Started, Infrastructure and Deployment, Production Features
+- Use generic placeholders (your-agent-name, your_agent_name) instead of adk-docker-uv in documentation examples
+- Update project structure tree in development.md to reflect current files and directories
+- Optimize CLAUDE.md for AI consumption: 36% size reduction (440→279 lines), replace verbose prose with dense technical summaries, update outdated utils references (env_parser.py → config.py/observability.py), add branch protection warning
+- Add explicit project parameters to all GCP resources in bootstrap Terraform module for clarity and reduced misconfiguration risk
+- Exclude main Terraform module lockfile from version control to prevent platform-specific conflicts from local testing (CI/CD-only execution)
 
 ## [0.5.0] - 2025-11-27
 
