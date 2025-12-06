@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Prevent workload identity federation resource ID collisions by using GitHub repository ID instead of repository name, ensuring unique identifiers even for repositories with similar names (#35)
 - Add `shell: bash {0}` to terraform plan for error output capture
 - Truncate service account IDs to enforce GCP 30-character limit
+- Add explicit project parameters to all GCP resources in bootstrap Terraform module for clarity and reduced misconfiguration risk (#39)
+- Exclude main Terraform module lockfile from version control to prevent platform-specific conflicts from local testing (CI/CD-only execution) (#39)
 
 ### Added
 - Dedicated bootstrap setup guide (`docs/bootstrap-setup.md`) with minimal commands and troubleshooting (#36)
